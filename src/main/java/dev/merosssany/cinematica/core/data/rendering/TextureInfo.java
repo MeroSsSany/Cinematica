@@ -1,4 +1,4 @@
-package dev.merosssany.cinematica.core.data;
+package dev.merosssany.cinematica.core.data.rendering;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
@@ -32,5 +32,13 @@ public record TextureInfo(float width, float height, DynamicTexture texture, Res
             return new TextureInfo(width, height, dTex, location);
         }
         return null;
+    }
+    
+    public static TextureInfo empty() {
+        return new TextureInfo(0,0,null,null);
+    }
+    
+    public boolean isEmpty() {
+        return texture == null && location == null;
     }
 }

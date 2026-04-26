@@ -2,7 +2,7 @@ package dev.merosssany.cinematica.renderer;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import dev.merosssany.cinematica.core.Cinematica;
-import dev.merosssany.cinematica.core.data.TextureInfo;
+import dev.merosssany.cinematica.core.data.rendering.TextureInfo;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.ResourceLocation;

@@ -6,8 +6,9 @@ import com.mojang.blaze3d.platform.InputConstants;
 import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.core.FileManager;
 import dev.merosssany.cinematica.core.audio.data.factory.DefaultFactories;
-import dev.merosssany.cinematica.core.data.intro.SlideshowSettings;
+import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
 import dev.merosssany.cinematica.renderer.ScrollingTextScreen;
+import dev.merosssany.cinematica.renderer.SlideshowScreen;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
@@ -26,8 +27,10 @@ import java.nio.file.Path;
 @Mod(Cinematica.MODID)
 public class ForgeCinematica {
     private static SlideshowSettings settings;
+    private static final ObjectKey key = new ObjectKey();
     
-    public ForgeCinematica() throws FileNotFoundException {
+    public ForgeCinematica() {
+        Cinematica.init(key);
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
         DefaultFactories.register();
         
@@ -78,48 +81,47 @@ public class ForgeCinematica {
         @SubscribeEvent
         public static void onClientTick(TickEvent.ClientTickEvent event) {
             if (event.phase == TickEvent.Phase.END) {
-                // consumesClick() returns true only once per press
                 while (OPEN_INTRO.consumeClick()) {
                     Minecraft mc = Minecraft.getInstance();
                     
-                    // Example: Open your scrolling screen when K is pressed
-                    // You'll need to pass your manifest data here
-//                    mc.setScreen(new SlideshowScreen(settings));
-                    try {
-                        mc.setScreen(new ScrollingTextScreen(
-                                false,
-                                20,
-                                """
-                                        Text
-                                        
-                                        
-                                        Text
-                                        
-                                        
-                                        Text
-                                        
-                                        
-                                        Text
-                                        
-                                        
-                                        Text
-                                        
-                                        
-                                        Text
-                                        
-                                        
-                                        Text
-                                        
-                                        
-                                        Text
-                                        """,
-                                "",
-                                "",
-                                "Thanks for using Cinematica."
-                        ));
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
+                    mc.setScreen(new SlideshowScreen(settings));
+//                    try {
+//                        mc.setScreen(new ScrollingTextScreen(
+//                                false,
+//                                20,
+//                                """
+//                                        Text
+//
+//
+//                                        Text
+//
+//
+//                                        Text
+//
+//
+//                                        Text
+//
+//
+//                                        Text
+//
+//
+//                                        Text
+//
+//
+//                                        Text
+//
+//
+//                                        Text
+//                                        """,
+//                                "",
+//                                "",
+//                                "Thanks for using Cinematica.",
+//                                1.5f,
+//                                2
+//                        ));
+//                    } catch (IOException e) {
+//                        throw new RuntimeException(e);
+//                    }
                 }
             }
         }

@@ -4,9 +4,9 @@ import com.mojang.blaze3d.platform.NativeImage;
 import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.core.audio.AudioPlayer;
 import dev.merosssany.cinematica.core.audio.AudioThread;
-import dev.merosssany.cinematica.core.data.TextureInfo;
-import dev.merosssany.cinematica.core.data.intro.SlideshowSettings;
-import dev.merosssany.cinematica.core.data.intro.SlideshowSlide;
+import dev.merosssany.cinematica.core.data.rendering.TextureInfo;
+import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
+import dev.merosssany.cinematica.core.data.slideshow.SlideshowSlide;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -37,17 +37,17 @@ public class SlideshowScreen extends Screen {
     private final boolean skippable;
     
     public SlideshowScreen(SlideshowSettings settings) {
-        super(Component.literal("Cinematica Gallery"));
+        super(Component.literal("Cinematica Slideshow"));
         this.skippable = settings.skippable();
         this.settings = settings;
         this.totalStage = settings.stages().length;
         lastTime = GLFW.glfwGetTime();
-        String locationName = "cinematica_intro_" + settings.name();
+        String locationName = "cinematica_slideshow_" + settings.name();
         fadeState = FadeState.FADE_FROM_BLACK;
         thread = new AudioThread(new AudioPlayer(), () -> {
             thread.shutdown();
         });
-        thread.startStream(settings.musicPath());
+        if (settings.musicPath() != null) thread.startStream(settings.musicPath());
         
         textures = new TextureInfo[totalStage];
         failed = new String[textures.length];
@@ -121,36 +121,40 @@ public class SlideshowScreen extends Screen {
             
             float eased = progress * progress * (3 - 2 * progress); // smoothstep
             
-            if (settings.kenBurns()) {
+            if (settings.kenBurns().useKenBurns()) {
                 // --- ZOOM LOGIC ---
                 // Alternate Zoom In / Zoom Out
-                float zoomStart = (stage % 2 == 0) ? 1.1f : 1.0f;
-                float zoomEnd = (stage % 2 == 0) ? 1.0f : 1.1f;
+                float zoomStart = (stage % 2 == 0)? 1.1f : 1.0f;
+                float zoomEnd = (stage % 2 == 0)? 1.0f : 1.1f;
                 currentZoom = zoomStart + (zoomEnd - zoomStart) * progress;
                 
-                // --- PAN LOGIC ---
-                // Calculate the "extra" space we have to move within
-                // We multiply by currentZoom because a zoomed-in image has more "slack" to pan
-                float totalWidth = imgW * baseScale * currentZoom;
-                float extraWidth = totalWidth - this.width;
-                
-                // Pan horizontally based on stage index
-                if (extraWidth > 0) {
-                    if (stage % 2 == 0) {
-                        // Pan Right to Left
-                        panX = (extraWidth / 2f) - (eased * extraWidth);
-                    } else {
-                        // Pan Left to Right
-                        panX = -(extraWidth / 2f) + (eased * extraWidth);
+                if (settings.kenBurns().panCameraHorizontally()) {
+                    // --- PAN LOGIC ---
+                    // Calculate the "extra" space we have to move within
+                    // We multiply by currentZoom because a zoomed-in image has more "slack" to pan
+                    float totalWidth = imgW * baseScale * currentZoom;
+                    float extraWidth = totalWidth - this.width;
+                    
+                    // Pan horizontally based on stage index
+                    if (extraWidth > 0) {
+                        if (stage % 2 == 0) {
+                            // Pan Right to Left
+                            panX = (extraWidth / 2f) - (eased * extraWidth);
+                        } else {
+                            // Pan Left to Right
+                            panX = -(extraWidth / 2f) + (eased * extraWidth);
+                        }
                     }
                 }
                 
-                float extraHeight = (imgH * baseScale * currentZoom) - this.height;
-                
-                if (extraHeight > 0) {
-                    panY = (stage % 2 == 0)
-                            ? (extraHeight / 2f) - (eased * extraHeight)
-                            : -(extraHeight / 2f) + (eased * extraHeight);
+                if (settings.kenBurns().panCameraVertically()) {
+                    float extraHeight = (imgH * baseScale * currentZoom) - this.height;
+                    
+                    if (extraHeight > 0) {
+                        panY = (stage % 2 == 0)
+                                ? (extraHeight / 2f) - (eased * extraHeight)
+                                : -(extraHeight / 2f) + (eased * extraHeight);
+                    }
                 }
             }
             
@@ -173,7 +177,7 @@ public class SlideshowScreen extends Screen {
         }
         
         if (!subtext.isEmpty() || !title.isEmpty()) {
-            int width = Math.max(font.width(subtext), font.width(title)) + 5;
+            int width = (int) Math.max(font.width(subtext), font.width(title) * 1.5f) + 5;
             int height = font.lineHeight + 3;
             int charsToShow = (int) Math.min(currentStage.subtext().length(),
                     Math.max(0, (timePassed - (1.0 / fadeSpeed)) * 10)); // 10 chars per second
@@ -187,7 +191,7 @@ public class SlideshowScreen extends Screen {
             else
                 posX = this.width - settings.offset().x - width; // Right side
             
-            if (settings.bottomView()) {
+            if (settings.largerTextBackground()) {
                 // 1. Calculate the Y-coordinates for better readability
                 int gradientTop = this.height - settings.offset().y;
                 int solidTop = this.height - (settings.offset().y / 2);

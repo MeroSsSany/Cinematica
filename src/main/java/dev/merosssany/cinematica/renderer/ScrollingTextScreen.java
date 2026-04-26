@@ -3,7 +3,8 @@ package dev.merosssany.cinematica.renderer;
 import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.core.audio.AudioPlayer;
 import dev.merosssany.cinematica.core.audio.AudioThread;
-import dev.merosssany.cinematica.core.data.TextureInfo;
+import dev.merosssany.cinematica.core.data.rendering.TextureInfo;
+import dev.merosssany.cinematica.core.data.scrollingtext.CreditsSettings;
 import dev.merosssany.cinematica.data.ResourceLocationReader;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -35,7 +36,29 @@ public class ScrollingTextScreen extends Screen {
     private boolean renderFinal;
     private boolean scrollFinished = false;
     
-    public ScrollingTextScreen(boolean wave, float speed, String text, String logo, String music, String finalMessage, float scale, float fadeSpeed) throws IOException {
+    public ScrollingTextScreen(CreditsSettings settings) throws IOException {
+        this(
+                settings.wave(),
+                settings.speed(),
+                settings.text(),
+                settings.logo(),
+                settings.music(),
+                settings.finalMessage(),
+                settings.scale(),
+                settings.fadeSpeed()
+        );
+    }
+    
+    public ScrollingTextScreen(
+            boolean wave,
+            float speed,
+            String text,
+            String logo,
+            String music,
+            String finalMessage,
+            float scale,
+            float fadeSpeed
+    ) throws IOException {
         super(Component.literal("Cinematica Scrolling Text"));
         
         this.scrollSpeed = speed;
@@ -162,6 +185,15 @@ public class ScrollingTextScreen extends Screen {
             fadeProgress += (float) (fadeSpeed * delta);
             
             if (fadeProgress > 1.0f) fadeProgress = 1.0f;
+            
+            float visualAlpha = (fadeState == FadeState.FADE_FROM_BLACK) ? 1.0f - fadeProgress : fadeProgress;
+            int alphaBits = (int) (visualAlpha * 255.0f);
+            int color = (alphaBits << 24) & 0xFF000000; // Black with dynamic alpha
+            
+            graphics.pose().pushPose();
+            graphics.pose().translate(0, 0, 500); // Ensure it's on top of everything
+            graphics.fill(0, 0, this.width, this.height, color);
+            graphics.pose().popPose();
             
             // Transition Logic
             if (fadeProgress >= 1.0f) {

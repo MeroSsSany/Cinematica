@@ -1,16 +1,203 @@
 package dev.merosssany.cinematica.core;
 
-import dev.merosssany.cinematica.core.data.CinematicaSettings;
-import dev.merosssany.cinematica.core.wrapper.NetworkPacketHandler;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.mojang.logging.LogUtils;
+import dev.merosssany.cinematica.core.data.handler.JsonDataAdapter;
+import dev.merosssany.cinematica.core.data.scrollingtext.CreditsSettings;
+import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
+import dev.merosssany.cinematica.ObjectKey;
+import org.slf4j.Logger;
 
-public class Cinematica {
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
+public final class Cinematica {
     public static final String MODID = "cinematica";
     
-    private final CinematicaSettings settings;
-    private final NetworkPacketHandler networkHandler;
+    private static final Map<String, SlideshowSettings> slideshows = new ConcurrentHashMap<>();
+    private static final Map<String, CreditsSettings> credits = new ConcurrentHashMap<>();
+    private static final Logger LOGGER = LogUtils.getLogger();
     
-    public Cinematica(CinematicaSettings settings, NetworkPacketHandler networkHandler) {
-        this.settings = settings;
-        this.networkHandler = networkHandler;
+    private static ObjectKey lock;
+    private static boolean frozen;
+    
+    public static void init(ObjectKey lock) {
+        if (lock == null) {
+            throw new IllegalArgumentException("ObjectKey cannot be null");
+        }
+        if (Cinematica.lock != null) {
+            throw new IllegalStateException("Cinematica is already initialized!");
+        }
+        
+        Cinematica.lock = lock;
     }
+    
+    public static void register(SlideshowSettings settings) {
+        if (frozen) {
+            throw new IllegalStateException("Cinematica is frozen!");
+        }
+        slideshows.put(settings.name(), settings);
+    }
+    
+    public static void register(CreditsSettings settings) {
+        if (frozen) {
+            throw new IllegalStateException("Cinematica is frozen!");
+        }
+        credits.put(settings.name(), settings);
+    }
+    
+    public static SlideshowSettings getSlideshow(String name) {
+        return slideshows.get(name);
+    }
+    
+    public static CreditsSettings getCredits(String name) {
+        return credits.get(name);
+    }
+    
+    public static void freeze(ObjectKey key) {
+        if (key == lock) frozen = true;
+    }
+    
+    public static void beginReload(ObjectKey key) {
+        if (key != lock) throw new SecurityException();
+        frozen = false;
+        clear(key);
+    }
+    
+    public static void clear(ObjectKey key) {
+        if (frozen) {
+            throw new IllegalStateException("Cannot clear while frozen");
+        }
+        if (key == lock) {
+            slideshows.clear();
+            credits.clear();
+        }
+    }
+    
+    public static boolean exists(String name) {
+        return slideshows.containsKey(name) || credits.containsKey(name);
+    }
+    
+    public static LoadDetail[] reloadAll(ObjectKey key) throws IOException {
+        if (lock != key) {
+            throw new SecurityException("Invalid ObjectKey");
+        }
+        clear(key);
+        
+        Path cinematica = FileManager.getCinematicaFolder();
+        
+        if (Files.isDirectory(cinematica)) {
+            File[] files = new File(cinematica.toUri()).listFiles();
+            
+            if (files == null) return null;
+            
+            LoadDetail[] details = new LoadDetail[files.length];
+            
+            for (int i = 0; i < files.length; i++) {
+                File file = files[i];
+                
+                if (file.isDirectory()) {
+                    try {
+                        details[i] = new LoadDetail(
+                                file.toPath(),
+                                load(file.toPath()) + " has been loaded successfully.",
+                                false
+                        );
+                        
+                    } catch (Exception e) {
+                        Cinematica.LOGGER.error("Failed to load cinematic at {}", file.toPath(), e);
+                        details[i] = new LoadDetail(file.toPath(), e.getMessage(), true);
+                    }
+                }
+            }
+            
+            return details;
+        }
+        return null;
+    }
+    
+    public static String load(Path root) throws IOException, InvalidJsonException {
+        if (frozen) throw new IllegalStateException("Cinematica is frozen!");
+        
+        Path metadata = root.resolve("cinematica.json");
+        
+        JsonObject metadataJson;
+        try (FileReader reader = new FileReader(metadata.toFile())) {
+            metadataJson = JsonParser.parseReader(reader).getAsJsonObject();
+        }
+        
+        if (!metadataJson.has("version"))
+            throw new InvalidJsonException("Couldn't find property \"version\". This property is mandatory.");
+        if (!metadataJson.has("folders"))
+            throw new InvalidJsonException("Couldn't find property \"folders\". This property is mandatory.");
+        
+        JsonObject folders = metadataJson.get("folders").getAsJsonObject();
+        
+        loadSlideshows(root, folders);
+        loadCreditScreens(root, folders);
+        
+        return root.toFile().getName();
+    }
+    
+    private static void loadCreditScreens(Path root, JsonObject folders) throws InvalidJsonException, IOException {
+        if (folders.has("scrolling_text")) {
+            String scrollingText = folders.get("scrolling_text").getAsString();
+            Path scrollingTextFolder = root.resolve(scrollingText);
+            File scrollingTextFile = scrollingTextFolder.toFile();
+            if (!scrollingTextFile.isDirectory()) throw new InvalidJsonException("\""+scrollingText+"\" must be a folder.");
+            
+            for (File file : scrollingTextFile.listFiles()) {
+                JsonObject j;
+                try (FileReader reader = new FileReader(file)) {
+                    if (!file.getName().endsWith(".json")) continue;
+                    j = JsonParser.parseReader(reader).getAsJsonObject();
+                }
+                
+                if (CreditsSettings.isValid(j)) {
+                    register(CreditsSettings.fromJson(j));
+                }
+            }
+        }
+    }
+    
+    private static void loadSlideshows(Path root, JsonObject folders) throws InvalidJsonException, IOException {
+        if (folders.has("slideshows")) {
+            // Load the slideshow
+            String slideshowsFolderName = folders.get("slideshows").getAsString();
+            Path slideshows = root.resolve(slideshowsFolderName);
+            File slideshowsFile = slideshows.toFile();
+            
+            if (!slideshowsFile.isDirectory()) throw new InvalidJsonException("\""+slideshowsFolderName+"\" must be a folder.");
+            File[] slideshowSettings = slideshowsFile.listFiles();
+            
+            if (slideshowSettings == null) return;
+            
+            for (File file : slideshowSettings) {
+                JsonObject j;
+                
+                try (FileReader reader = new FileReader(file)) {
+                    if (!file.getName().endsWith(".json")) continue;
+                    j = JsonParser.parseReader(reader).getAsJsonObject();
+                }
+                
+                if (SlideshowSettings.isValid(j)) {
+                    register(SlideshowSettings.fromJson(j, root));
+                }
+            }
+        }
+    }
+    
+    public static Logger getLogger() {
+        return LOGGER;
+    }
+    
+    public record LoadDetail(Path path, String msg, boolean failure) {}
 }
