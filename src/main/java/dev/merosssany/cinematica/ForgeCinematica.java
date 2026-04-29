@@ -7,7 +7,6 @@ import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.core.FileManager;
 import dev.merosssany.cinematica.core.audio.data.factory.DefaultFactories;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
-import dev.merosssany.cinematica.renderer.ScrollingTextScreen;
 import dev.merosssany.cinematica.renderer.SlideshowScreen;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -22,7 +21,6 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.lwjgl.glfw.GLFW;
 
 import java.io.*;
-import java.nio.file.Path;
 
 @Mod(Cinematica.MODID)
 public class ForgeCinematica {
@@ -41,7 +39,8 @@ public class ForgeCinematica {
         }
         
         try {
-            settings = SlideshowSettings.fromJson(readJsonFile(new File("/partition/Programming/Hybrid/Cinematica/run/config/cinematica/test/scene/test_scene.json")), Path.of("/partition/Programming/Hybrid/Cinematica/run/config/cinematica/test/"));
+             String name = Cinematica.load(FileManager.getCinematicaFolder().resolve("test"));
+             settings = Cinematica.getSlideshow(name);
             
         } catch (Exception e) {
             throw new RuntimeException(e);

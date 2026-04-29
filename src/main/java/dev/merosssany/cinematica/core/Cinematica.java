@@ -42,6 +42,7 @@ public final class Cinematica {
             throw new IllegalStateException("Cinematica is frozen!");
         }
         slideshows.put(settings.name(), settings);
+        LOGGER.info("Registered slideshow \"{}\" successfully", settings.name());
     }
     
     public static void register(CreditsSettings settings) {
@@ -49,6 +50,7 @@ public final class Cinematica {
             throw new IllegalStateException("Cinematica is frozen!");
         }
         credits.put(settings.name(), settings);
+        LOGGER.info("Registered credits screen \"{}\" successfully", settings.name());
     }
     
     public static SlideshowSettings getSlideshow(String name) {
@@ -149,9 +151,12 @@ public final class Cinematica {
             String scrollingText = folders.get("scrolling_text").getAsString();
             Path scrollingTextFolder = root.resolve(scrollingText);
             File scrollingTextFile = scrollingTextFolder.toFile();
-            if (!scrollingTextFile.isDirectory()) throw new InvalidJsonException("\""+scrollingText+"\" must be a folder.");
+            if (!scrollingTextFile.isDirectory())
+                throw new InvalidJsonException("\"" + scrollingText + "\" must be a folder.");
+            File[] files = scrollingTextFile.listFiles();
+            if (files == null) return; // This shouldn't happen
             
-            for (File file : scrollingTextFile.listFiles()) {
+            for (File file : files) {
                 JsonObject j;
                 try (FileReader reader = new FileReader(file)) {
                     if (!file.getName().endsWith(".json")) continue;
@@ -172,7 +177,8 @@ public final class Cinematica {
             Path slideshows = root.resolve(slideshowsFolderName);
             File slideshowsFile = slideshows.toFile();
             
-            if (!slideshowsFile.isDirectory()) throw new InvalidJsonException("\""+slideshowsFolderName+"\" must be a folder.");
+            if (!slideshowsFile.isDirectory())
+                throw new InvalidJsonException("\"" + slideshowsFolderName + "\" must be a folder.");
             File[] slideshowSettings = slideshowsFile.listFiles();
             
             if (slideshowSettings == null) return;
@@ -185,9 +191,7 @@ public final class Cinematica {
                     j = JsonParser.parseReader(reader).getAsJsonObject();
                 }
                 
-                if (SlideshowSettings.isValid(j)) {
-                    register(SlideshowSettings.fromJson(j, root));
-                }
+                register(SlideshowSettings.fromJson(j, root));
             }
         }
     }
@@ -196,5 +200,6 @@ public final class Cinematica {
         return LOGGER;
     }
     
-    public record LoadDetail(Path path, String msg, boolean failure) {}
+    public record LoadDetail(Path path, String msg, boolean failure) {
+    }
 }
