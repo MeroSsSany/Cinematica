@@ -6,6 +6,7 @@ import com.mojang.logging.LogUtils;
 import dev.merosssany.cinematica.core.data.scrollingtext.CreditsSettings;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
 import dev.merosssany.cinematica.ObjectKey;
+import dev.merosssany.cinematica.core.data.slideshow.SlideshowSlide;
 import org.slf4j.Logger;
 
 import java.io.File;
@@ -21,7 +22,7 @@ public final class Cinematica {
     
     private static final Map<String, SlideshowSettings> slideshows = new ConcurrentHashMap<>();
     private static final Map<String, CreditsSettings> credits = new ConcurrentHashMap<>();
-    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final Logger logger = LogUtils.getLogger();
     
     private static ObjectKey lock;
     private static boolean frozen;
@@ -41,8 +42,19 @@ public final class Cinematica {
         if (frozen) {
             throw new IllegalStateException("Cinematica is frozen!");
         }
+        
+        // Verifying the assets
+        if (settings.musicPath().exists()) {
+            logger.error("Music file does not exist: {}", settings.musicPath().getAbsolutePath());
+        }
+        
+        for (SlideshowSlide slide : settings.slides()) {
+            if (slide.assetPath().exists()) continue;
+            logger.error("Asset does not exist: {}", slide.assetPath().getAbsolutePath());
+        }
+        
         slideshows.put(settings.name(), settings);
-        LOGGER.info("Registered slideshow \"{}\" successfully", settings.name());
+        logger.info("Registered slideshow \"{}\" successfully", settings.name());
     }
     
     public static void register(CreditsSettings settings) {
@@ -50,7 +62,7 @@ public final class Cinematica {
             throw new IllegalStateException("Cinematica is frozen!");
         }
         credits.put(settings.name(), settings);
-        LOGGER.info("Registered credits screen \"{}\" successfully", settings.name());
+        logger.info("Registered credits screen \"{}\" successfully", settings.name());
     }
     
     public static SlideshowSettings getSlideshow(String name) {
@@ -81,8 +93,12 @@ public final class Cinematica {
         }
     }
     
-    public static boolean exists(String name) {
-        return slideshows.containsKey(name) || credits.containsKey(name);
+    public static boolean SlideshowExists(String name) {
+        return slideshows.containsKey(name);
+    }
+    
+    public static boolean CreditsExists(String name) {
+        return credits.containsKey(name);
     }
     
     public static LoadDetail[] reloadAll(ObjectKey key) throws IOException {
@@ -112,7 +128,7 @@ public final class Cinematica {
                         );
                         
                     } catch (Exception e) {
-                        Cinematica.LOGGER.error("Failed to load cinematic at {}", file.toPath(), e);
+                        Cinematica.logger.error("Failed to load cinematic at {}", file.toPath(), e);
                         details[i] = new LoadDetail(file.toPath(), e.getMessage(), true);
                     }
                 }
@@ -197,7 +213,11 @@ public final class Cinematica {
     }
     
     public static Logger getLogger() {
-        return LOGGER;
+        return logger;
+    }
+    
+    public static Set<String> getSlideshows() {
+        return slideshows.keySet();
     }
     
     public record LoadDetail(Path path, String msg, boolean failure) {

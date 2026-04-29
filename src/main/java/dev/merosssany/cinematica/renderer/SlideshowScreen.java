@@ -31,59 +31,31 @@ public class SlideshowScreen extends Screen {
     private FadeState fadeState;
     private float fadeProgress;
     private float fadeSpeed;
-    private final TextureInfo[] textures;
-    private final String[] failed;
     private AudioThread thread;
     private final boolean skippable;
+    private boolean init;
+    private TextureInfo currentTexture;
+    private String failed;
     
     public SlideshowScreen(SlideshowSettings settings) {
         super(Component.literal("Cinematica Slideshow"));
         this.skippable = settings.skippable();
         this.settings = settings;
-        this.totalStage = settings.stages().length;
+        this.totalStage = settings.slides().length;
         lastTime = GLFW.glfwGetTime();
-        String locationName = "cinematica_slideshow_" + settings.name();
         fadeState = FadeState.FADE_FROM_BLACK;
-        thread = new AudioThread(new AudioPlayer(), () -> {
-            thread.shutdown();
-        });
+        thread = new AudioThread(new AudioPlayer(), () -> thread.shutdown());
         if (settings.musicPath() != null) thread.startStream(settings.musicPath());
-        
-        textures = new TextureInfo[totalStage];
-        failed = new String[textures.length];
         fadeSpeed = settings.fadeSpeed();
-        
-        for (int i = 0; i < totalStage; i++) {
-            SlideshowSlide galleryStage = settings.stages()[i];
-            
-            if (galleryStage.isImage()) {
-                try (FileInputStream stream = new FileInputStream(galleryStage.assetPath())) {
-                    NativeImage image = NativeImage.read(stream);
-                    DynamicTexture texture = new DynamicTexture(image);
-                    
-                    float imgW = image.getWidth();
-                    float imgH = image.getHeight();
-                    
-                    ResourceLocation location = new ResourceLocation(Cinematica.MODID, locationName + "_" + i);
-                    image.close();
-                    
-                    textures[i] = new TextureInfo(imgW, imgH, texture, location);
-                    
-                    Minecraft.getInstance().getTextureManager().register(location, texture);
-                    
-                    
-                } catch (FileNotFoundException e) {
-                    failed[i] = "File " + galleryStage.assetPath() + " is not found.\nIt maybe a failed extraction.";
-                    e.printStackTrace();
-                    
-                } catch (IOException e) {
-                    failed[i] = e.getMessage();
-                    e.printStackTrace();
-                }
-            } else textures[i] = null;
+    }
+    
+    @Override
+    protected void init() {
+        super.init();
+        if (!init) {
+            thread.start();
+            init = true;
         }
-        
-        thread.start();
     }
     
     @Override
@@ -95,7 +67,7 @@ public class SlideshowScreen extends Screen {
         lastTime = current;
         timePassed += delta;
         
-        SlideshowSlide currentStage = settings.stages()[stage];
+        SlideshowSlide currentStage = settings.slides()[stage];
         String subtext = currentStage.subtext();
         String title = currentStage.title();
         
@@ -104,10 +76,36 @@ public class SlideshowScreen extends Screen {
             fadeProgress = 0;
         }
         
-        TextureInfo texture = textures[stage];
-        if (texture != null) {
-            float imgW = texture.width();
-            float imgH = texture.height();
+        String locationName = "cinematica_slideshow_" + settings.name();
+        
+        if (currentTexture == null) {
+            try (FileInputStream stream = new FileInputStream(currentStage.assetPath())) {
+                NativeImage image = NativeImage.read(stream);
+                DynamicTexture tex = new DynamicTexture(image);
+                
+                float imgW = image.getWidth();
+                float imgH = image.getHeight();
+                
+                ResourceLocation location = new ResourceLocation(Cinematica.MODID, locationName + "_" + stage);
+                image.close();
+                
+                currentTexture = new TextureInfo(imgW, imgH, tex, location);
+                
+                Minecraft.getInstance().getTextureManager().register(location, tex);
+                
+            } catch (FileNotFoundException e) {
+                failed = "File " + currentStage.assetPath() + " is not found.\nIt maybe a failed extraction.";
+                e.printStackTrace();
+                
+            } catch (IOException e) {
+                failed = e.getMessage();
+                e.printStackTrace();
+            }
+        }
+        
+        if (currentTexture != null) {
+            float imgW = currentTexture.width();
+            float imgH = currentTexture.height();
             
             // Calculate Base Scale to fill the screen
             float baseScale = Math.max((float) this.width / imgW, (float) this.height / imgH);
@@ -171,7 +169,7 @@ public class SlideshowScreen extends Screen {
 
             graphics.pose().translate(-imgW * currentStage.anchor().x, -imgH * currentStage.anchor().y, 0);
 
-            graphics.blit(texture.location(), 0, 0, 0, 0, (int)imgW, (int)imgH, (int)imgW, (int)imgH);
+            graphics.blit(currentTexture.location(), 0, 0, 0, 0, (int)imgW, (int)imgH, (int)imgW, (int)imgH);
             
             graphics.pose().popPose();
         }
@@ -211,7 +209,7 @@ public class SlideshowScreen extends Screen {
                 graphics.drawCenteredString(font, visibleText, centerX, subtextY, 0xFFFFFFFF);
                 
             } else {
-                // Floating Box Logic (Keep as is, but ensuring the scale/center math is consistent)
+                // Floating Box Logic
                 graphics.fill(posX - 5, posY - 5, posX + width + 5, posY + (height * 2) + 5, 0xCC000000);
                 drawScaledString(graphics, currentStage.title(), posX + (width / 2), posY, 1.5f, 0xFFC8C8C8, true);
                 graphics.drawCenteredString(this.font, visibleText, posX + (width / 2), posY + height + 2, 0xFFFFFFFF);
@@ -241,6 +239,17 @@ public class SlideshowScreen extends Screen {
                         timePassed = 0; // Reset typing effect for next stage
                         fadeState = FadeState.FADE_FROM_BLACK;
                         fadeProgress = 0;
+                        
+                        TextureInfo tex = currentTexture;
+                        
+                        if (tex != null && tex.texture() != null) {
+                            tex.texture().close();
+                            Minecraft.getInstance().getTextureManager().release(tex.location());
+                            currentTexture = null;
+                        }
+                        
+                        failed = "";
+                        
                     } else {
                         this.onClose();
                     }
@@ -250,10 +259,10 @@ public class SlideshowScreen extends Screen {
             }
         }
         
-        if (failed[stage] != null && !failed[stage].isEmpty()) {
+        if (failed != null && !failed.isEmpty()) {
             graphics.drawCenteredString(font, "⚠ Asset Error", this.width / 2, this.height / 2, 0xFFFF5555);
             
-            List<Component> tooltipLines = Arrays.stream(failed[stage].split("\n"))
+            List<Component> tooltipLines = Arrays.stream(failed.split("\n"))
                     .map(Component::literal)
                     .collect(Collectors.toList());
             
@@ -269,11 +278,10 @@ public class SlideshowScreen extends Screen {
     @Override
     public void onClose() {
         super.onClose();
-        for (TextureInfo tex : textures) {
-            if (tex != null && tex.texture() != null) {
-                tex.texture().close();
-                Minecraft.getInstance().getTextureManager().release(tex.location());
-            }
+        if (currentTexture != null) {
+            currentTexture.texture().close();
+            Minecraft.getInstance().getTextureManager().release(currentTexture.location());
+            currentTexture = null;
         }
         thread.addTask(() -> {
             AudioPlayer player = thread.getPlayer();

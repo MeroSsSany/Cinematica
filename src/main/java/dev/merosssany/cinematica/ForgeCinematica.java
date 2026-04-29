@@ -7,16 +7,18 @@ import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.core.FileManager;
 import dev.merosssany.cinematica.core.audio.data.factory.DefaultFactories;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
+import dev.merosssany.cinematica.registry.command.CinematicaCommands;
+import dev.merosssany.cinematica.registry.command.ModArgumentTypes;
 import dev.merosssany.cinematica.renderer.SlideshowScreen;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
+import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.lwjgl.glfw.GLFW;
 
@@ -31,6 +33,7 @@ public class ForgeCinematica {
         Cinematica.init(key);
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
         DefaultFactories.register();
+        ModArgumentTypes.register();
         
         try {
             FileManager.init();
@@ -53,7 +56,9 @@ public class ForgeCinematica {
         }
     }
     
-    private void commonSetup(final FMLCommonSetupEvent event) {
+    @SubscribeEvent
+    public void onCommandRegister(RegisterCommandsEvent e) {
+        CinematicaCommands.register(e.getDispatcher());
     }
     
     @SubscribeEvent

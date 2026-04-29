@@ -1,7 +1,7 @@
 package dev.merosssany.cinematica.core.data.dialog;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
 
 import java.nio.file.Path;
 
@@ -10,15 +10,14 @@ public record DialogSettings(
         int speed,
         boolean skippable,
         boolean overlayMode,
-        DialogStage[] dialogStages,
-        Path root
+        DialogStage[] dialogStages
 ) {
     
-    public static DialogSettings fromJson(JsonObject json) {
-        return new Gson().fromJson(json, DialogSettings.class);
+    public static DialogSettings fromJson(JsonObject json, Path root) {
+        return SlideshowSettings.getGson(root).fromJson(json, DialogSettings.class);
     }
     
-    public JsonObject toJson() {
-        return new Gson().toJsonTree(this).getAsJsonObject();
+    public JsonObject toJson(Path root) {
+        return SlideshowSettings.getGson(root).toJsonTree(this).getAsJsonObject();
     }
 }

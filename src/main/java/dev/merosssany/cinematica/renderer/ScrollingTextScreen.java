@@ -93,7 +93,7 @@ public class ScrollingTextScreen extends Screen {
     
     @Override
     protected void init() {
-        if (!init) return;
+        if (!init) return; // Making sure this executes once
         this.scrollFactor = this.height + 20;
         this.lastFrame = GLFW.glfwGetTime();
         init = false;
@@ -137,12 +137,19 @@ public class ScrollingTextScreen extends Screen {
             if (this.wave) wave = (float) Math.sin(current * 2.0 + i * 0.5) * 3.0f;
             else wave = 0;
             
-            graphics.pose().pushPose();
-            graphics.pose().translate(0, wave, 0); // Apply sub-pixel vertical wave
+            int pX = width / 2;
+            int pY = textStartY + (i * lineHeight);
             
-            graphics.drawCenteredString(font, lines[i], width / 2, textStartY + (i * lineHeight), 0xFFFFFFFF);
-            
-            graphics.pose().popPose();
+            float actualY = (float) (scrollFactor + textStartY + (i * lineHeight));
+
+            if (actualY >= -lineHeight && actualY <= height) {
+                graphics.pose().pushPose();
+                graphics.pose().translate(0, (float) Math.floor(wave), 0); // Apply sub-pixel vertical wave
+                
+                graphics.drawCenteredString(font, lines[i], pX, (int) actualY, 0xFFFFFFFF);
+                
+                graphics.pose().popPose();
+            }
         }
         
         graphics.pose().popPose();
