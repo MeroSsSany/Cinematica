@@ -38,7 +38,7 @@ public final class Cinematica {
         Cinematica.lock = lock;
     }
     
-    public static void register(SlideshowSettings settings) {
+    public static void register(SlideshowSettings settings) throws InvalidJsonException {
         if (frozen) {
             throw new IllegalStateException("Cinematica is frozen!");
         }
@@ -48,7 +48,10 @@ public final class Cinematica {
             logger.error("Music file does not exist: {}", settings.musicPath().getAbsolutePath());
         }
         
-        for (SlideshowSlide slide : settings.slides()) {
+        SlideshowSlide[] slides = settings.slides();
+        if (slides == null) throw new InvalidJsonException("There is no slides to register");
+        
+        for (SlideshowSlide slide : slides) {
             if (slide.assetPath().exists()) continue;
             logger.error("Asset does not exist: {}", slide.assetPath().getAbsolutePath());
         }

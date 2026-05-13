@@ -8,6 +8,7 @@ public record SlideshowSlide(
         String title,
         String subtext,
         boolean isImage,
-        File assetPath, // Renamed from imagePath for consistency
-        Vector2f anchor
+        File assetPath,
+        Vector2f anchor,
+        KenBurnsOptions kenBurns
 ) {}

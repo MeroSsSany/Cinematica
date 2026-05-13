@@ -43,7 +43,7 @@ public class ForgeCinematica {
         
         try {
              String name = Cinematica.load(FileManager.getCinematicaFolder().resolve("test"));
-             settings = Cinematica.getSlideshow(name);
+             settings = Cinematica.getSlideshow(Cinematica.getSlideshows().iterator().next());
             
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -89,43 +89,6 @@ public class ForgeCinematica {
                     Minecraft mc = Minecraft.getInstance();
                     
                     mc.setScreen(new SlideshowScreen(settings));
-//                    try {
-//                        mc.setScreen(new ScrollingTextScreen(
-//                                false,
-//                                20,
-//                                """
-//                                        Text
-//
-//
-//                                        Text
-//
-//
-//                                        Text
-//
-//
-//                                        Text
-//
-//
-//                                        Text
-//
-//
-//                                        Text
-//
-//
-//                                        Text
-//
-//
-//                                        Text
-//                                        """,
-//                                "",
-//                                "",
-//                                "Thanks for using Cinematica.",
-//                                1.5f,
-//                                2
-//                        ));
-//                    } catch (IOException e) {
-//                        throw new RuntimeException(e);
-//                    }
                 }
             }
         }

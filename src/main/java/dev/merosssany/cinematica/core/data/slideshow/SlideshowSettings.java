@@ -19,7 +19,6 @@ public record SlideshowSettings(
         boolean skippable,
         boolean alternateTextPosition,
         boolean largerTextBackground,
-        KenBurnsOptions kenBurns,
         int secondsToSwitch,
         float fadeSpeed,
         String name,

@@ -23,16 +23,17 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class SlideshowScreen extends Screen {
-    private int stage;
     private final int totalStage;
     private final SlideshowSettings settings;
+    private final float fadeSpeed;
+    private final boolean skippable;
+    
+    private int stage;
     private double lastTime;
     private double timePassed = 0;
     private FadeState fadeState;
     private float fadeProgress;
-    private float fadeSpeed;
     private AudioThread thread;
-    private final boolean skippable;
     private boolean init;
     private TextureInfo currentTexture;
     private String failed;
@@ -86,7 +87,7 @@ public class SlideshowScreen extends Screen {
                 float imgW = image.getWidth();
                 float imgH = image.getHeight();
                 
-                ResourceLocation location = new ResourceLocation(Cinematica.MODID, locationName + "_" + stage);
+                ResourceLocation location = ResourceLocation.fromNamespaceAndPath(Cinematica.MODID, locationName + "_" + stage);
                 image.close();
                 
                 currentTexture = new TextureInfo(imgW, imgH, tex, location);
@@ -95,11 +96,11 @@ public class SlideshowScreen extends Screen {
                 
             } catch (FileNotFoundException e) {
                 failed = "File " + currentStage.assetPath() + " is not found.\nIt maybe a failed extraction.";
-                e.printStackTrace();
+                Cinematica.getLogger().error(failed, e);
                 
             } catch (IOException e) {
                 failed = e.getMessage();
-                e.printStackTrace();
+                Cinematica.getLogger().error(failed, e);
             }
         }
         
@@ -119,14 +120,14 @@ public class SlideshowScreen extends Screen {
             
             float eased = progress * progress * (3 - 2 * progress); // smoothstep
             
-            if (settings.kenBurns().useKenBurns()) {
+            if (currentStage.kenBurns().useKenBurns()) {
                 // --- ZOOM LOGIC ---
                 // Alternate Zoom In / Zoom Out
                 float zoomStart = (stage % 2 == 0)? 1.1f : 1.0f;
                 float zoomEnd = (stage % 2 == 0)? 1.0f : 1.1f;
                 currentZoom = zoomStart + (zoomEnd - zoomStart) * progress;
                 
-                if (settings.kenBurns().panCameraHorizontally()) {
+                if (currentStage.kenBurns().panCameraHorizontally()) {
                     // --- PAN LOGIC ---
                     // Calculate the "extra" space we have to move within
                     // We multiply by currentZoom because a zoomed-in image has more "slack" to pan
@@ -145,7 +146,7 @@ public class SlideshowScreen extends Screen {
                     }
                 }
                 
-                if (settings.kenBurns().panCameraVertically()) {
+                if (currentStage.kenBurns().panCameraVertically()) {
                     float extraHeight = (imgH * baseScale * currentZoom) - this.height;
                     
                     if (extraHeight > 0) {
@@ -288,14 +289,6 @@ public class SlideshowScreen extends Screen {
             player.startFadeOut(1.5f);
             thread.requestExitAfterPlayback();
         });
-    }
-    
-    public float getFadeSpeed() {
-        return fadeSpeed;
-    }
-    
-    public void setFadeSpeed(float fadeSpeed) {
-        this.fadeSpeed = fadeSpeed;
     }
     
     protected void drawScaledString(GuiGraphics graphics, String text, int x, int y, float scale, int color, boolean center) {

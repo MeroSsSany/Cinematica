@@ -1,6 +1,7 @@
 package dev.merosssany.cinematica.networking.packet;
 
 import dev.merosssany.cinematica.core.Cinematica;
+import dev.merosssany.cinematica.core.InvalidJsonException;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.network.NetworkEvent;
@@ -33,7 +34,11 @@ public class OpenSlideshowPacket {
         NetworkEvent.Context context = contextSupplier.get();
         context.enqueueWork(() -> {
             // We will assume the player downloaded the assets
-            Cinematica.register(settings);
+            try {
+                Cinematica.register(settings);
+            } catch (InvalidJsonException e) {
+                Cinematica.getLogger().error("Failed to register scene",e);
+            }
         });
         context.setPacketHandled(true);
     }

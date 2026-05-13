@@ -12,7 +12,6 @@ buildscript {
         // 4. Central
         mavenCentral()
 
-        // 5. Sponge - ONLY for Mixin (to avoid the 522 timeout on other files)
         maven {
             url = 'https://repo.spongepowered.org/repository/maven-public/'
             content {
