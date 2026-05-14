@@ -1,7 +1,10 @@
 package dev.merosssany.cinematica.networking;
 
+import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.networking.packet.OpenSlideshowPacket;
+import dev.merosssany.cinematica.networking.packet.SelectedScenePacket;
 import dev.merosssany.cinematica.networking.packet.SettingsPacket;
+import dev.merosssany.cinematica.networking.packet.SyncDeathContextPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkDirection;
@@ -16,7 +19,7 @@ public class NetworkManager {
     
     public static void register() {
         INSTANCE = NetworkRegistry.ChannelBuilder
-                .named(new ResourceLocation("cinematica", "messages"))
+                .named(ResourceLocation.fromNamespaceAndPath(Cinematica.MODID, "messages"))
                 .networkProtocolVersion(() -> "1.0")
                 .clientAcceptedVersions(s -> true)
                 .serverAcceptedVersions(s -> true)
@@ -32,6 +35,18 @@ public class NetworkManager {
                 .encoder(OpenSlideshowPacket::encode)
                 .decoder(OpenSlideshowPacket::new)
                 .consumerMainThread(OpenSlideshowPacket::handle)
+                .add();
+        
+        INSTANCE.messageBuilder(SelectedScenePacket.class, id(), NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(SelectedScenePacket::encode)
+                .decoder(SelectedScenePacket::new)
+                .consumerMainThread(SelectedScenePacket::handle)
+                .add();
+        
+        INSTANCE.messageBuilder(SyncDeathContextPacket.class, id(), NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(SyncDeathContextPacket::encode)
+                .decoder(SyncDeathContextPacket::new)
+                .consumerMainThread(SyncDeathContextPacket::handle)
                 .add();
     }
     

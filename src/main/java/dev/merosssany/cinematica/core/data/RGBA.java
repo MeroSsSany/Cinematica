@@ -50,11 +50,11 @@ public class RGBA extends RGB {
         this.alpha = clamp(0, 1, alpha);
     }
     
-    public static RGBA fromRGBA(int red, int green, int blue, float alpha) {
+    public static RGBA fromRGBA(int red, int green, int blue, int alpha) {
         float r = (float) red / 255f;
         float g = (float) green / 255f;
         float b = (float) blue / 255f;
-        return new RGBA(r, g, b, alpha);
+        return new RGBA(r, g, b, alpha / 255f);
     }
     
     public static RGBA getContrastColor(float red, float green, float blue, float alpha) {

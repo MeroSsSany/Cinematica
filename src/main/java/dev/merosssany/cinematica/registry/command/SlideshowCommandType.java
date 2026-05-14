@@ -24,7 +24,7 @@ public class SlideshowCommandType implements ArgumentType<SlideshowSettings> {
     @Override
     public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
         for (String slideshow : Cinematica.getSlideshows()) {
-            builder.suggest(slideshow);
+            builder.suggest("\""+slideshow+"\"");
         }
         return builder.buildFuture();
     }

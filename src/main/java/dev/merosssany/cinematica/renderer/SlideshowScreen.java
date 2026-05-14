@@ -259,8 +259,10 @@ public class SlideshowScreen extends Screen {
         // Calculate Base Scale to fill the screen
         float baseScale = Math.max((float) this.width / imgW, (float) this.height / imgH);
         
-        // Progress and Animation Toggles
-        float progress = (float) (timePassed / currentStage.secondsToSwitch());
+        double totalTextTime = (double) currentStage.subtext().length() / currentStage.typingSpeed();
+        double animationDuration = totalTextTime + currentStage.secondsToSwitch();
+        
+        float progress = (float) (timePassed / animationDuration);
         progress = Math.min(progress, 1.0f);
         float currentZoom = 1.0f;
         float panX = 0;

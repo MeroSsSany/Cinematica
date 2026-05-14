@@ -7,12 +7,16 @@ import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.core.FileManager;
 import dev.merosssany.cinematica.core.audio.data.factory.DefaultFactories;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
+import dev.merosssany.cinematica.networking.NetworkManager;
+import dev.merosssany.cinematica.registry.capablities.ICinematicCap;
 import dev.merosssany.cinematica.registry.command.CinematicaCommands;
 import dev.merosssany.cinematica.registry.command.ModArgumentTypes;
 import dev.merosssany.cinematica.renderer.SlideshowScreen;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
@@ -28,14 +32,13 @@ public class ForgeCinematica {
     private static SlideshowSettings settings;
     private static final ObjectKey key = new ObjectKey();
     
-    public ForgeCinematica() { // back compatibility
-        this(FMLJavaModLoadingContext.get());
-    }
-    
     public ForgeCinematica(FMLJavaModLoadingContext context) {
         Cinematica.init(key);
         DefaultFactories.register();
-        ModArgumentTypes.register();
+        ModArgumentTypes.register(context.getModEventBus());
+        NetworkManager.register();
+        
+        MinecraftForge.EVENT_BUS.register(this);
         
         try {
             FileManager.init();
@@ -65,6 +68,11 @@ public class ForgeCinematica {
     
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
+    }
+    
+    @SubscribeEvent
+    public static void registerCaps(RegisterCapabilitiesEvent event) {
+        event.register(ICinematicCap.class);
     }
     
     public static final String CATEGORY = "key.categories.cinematica";

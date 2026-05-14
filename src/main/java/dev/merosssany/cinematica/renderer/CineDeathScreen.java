@@ -3,21 +3,22 @@ package dev.merosssany.cinematica.renderer;
 import com.mojang.blaze3d.platform.NativeImage;
 import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.core.data.RGBA;
+import dev.merosssany.cinematica.core.data.death.DeathScreenContext;
 import dev.merosssany.cinematica.core.data.rendering.TextureInfo;
-import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSlide;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.screens.ConfirmScreen;
-import net.minecraft.client.gui.screens.DeathScreen;
-import net.minecraft.client.gui.screens.GenericDirtMessageScreen;
-import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.client.gui.components.Renderable;
+import net.minecraft.client.gui.screens.*;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.world.entity.LivingEntity;
+import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import org.lwjgl.glfw.GLFW;
 
@@ -35,9 +36,16 @@ public class CineDeathScreen extends SlideshowScreen {
     private boolean started;
     private boolean skipped;
     private boolean skipHandled;
+    private int prevStage = -1;
+    private String cache;
+    private boolean textSkipped;
+    private boolean ended;
     
-    public CineDeathScreen(SlideshowSettings settings) {
-        super(settings);
+    protected final DeathScreenContext context;
+    
+    public CineDeathScreen(DeathScreenContext context) {
+        super(context.settings());
+        this.context = context;
         
         setFadeState(FadeState.FADE_FROM_BLACK);
         lastFrame = glfwGetTime();
@@ -55,10 +63,18 @@ public class CineDeathScreen extends SlideshowScreen {
             started = true;
         }
         
-        if (started) super.render(graphics, mx, my, pTick);
-        else graphics.fill(0,0,width,height,0xFF000000);
+        if (started && !ended) super.render(graphics, mx, my, pTick);
+        else graphics.fill(0, 0, width, height, 0xFF000000);
         
-        if (timePassed < 0.3) Renderer.drawVignette(graphics, width, height, RGBA.fromRGBA(168, 20, 25, 1));
+        if (ended) {
+            Renderer.drawScaledString(font, graphics,"You died!", (int) (width / 0.5f), (int) (height / 0.1f), 1.5f,0xFFFFFFFF, true);
+            
+            for (Renderable renderable : this.renderables) {
+                renderable.render(graphics, mx, my, pTick);
+            }
+        }
+        
+        if (timePassed < 0.2) Renderer.drawVignette(graphics, width, height, RGBA.fromRGBA(168, 20, 25, 1));
     }
     
     @Override
@@ -108,7 +124,7 @@ public class CineDeathScreen extends SlideshowScreen {
     
     @Override
     protected void renderText(GuiGraphics graphics, String subtext, String title, SlideshowSlide currentStage) {
-        OverflowData overflow = Renderer.layoutText(this.font, List.of(subtext.split("\n")), this.width);
+        OverflowData overflow = Renderer.layoutText(this.font, getStrings(subtext), this.width);
         
         int pY = (this.height / 2) - (overflow.height() / 2);
         int pX = this.width / 2;
@@ -125,6 +141,45 @@ public class CineDeathScreen extends SlideshowScreen {
         }
     }
     
+    private @NotNull List<String> getStrings(String subtext) {
+        if (getStage() != prevStage) {
+            prevStage = getStage();
+            LocalPlayer player = getMinecraft().player;
+            
+            // Safety checks for attacker data
+            String attackerName = "The World";
+            String attackerHealth = "0";
+            if (context.entity() != null) {
+                attackerName = context.entity().getDisplayName().getString();
+                if (context.entity() instanceof LivingEntity living) {
+                    attackerHealth = String.format("%.1f", living.getHealth());
+                }
+            }
+            
+            ResourceLocation dimLocation = player.level().dimension().location();
+            String dimKey = "dimension." + dimLocation.getNamespace() + "." + dimLocation.getPath();
+            String dimensionName = Component.translatable(dimKey).getString();
+            
+            if (dimensionName.equals(dimKey)) {
+                dimensionName = StringUtils.capitalize(dimLocation.getPath());
+            }
+            
+            cache = subtext
+                    .replace("$player", player.getDisplayName().getString())
+                    .replace("$attacker_health", attackerHealth)
+                    .replace("$attacker", attackerName)
+                    .replace("$fps", String.valueOf(getMinecraft().getFps()))
+                    .replace("$x", String.format("%.1f", player.getX()))
+                    .replace("$y", String.format("%.1f", player.getY()))
+                    .replace("$z", String.format("%.1f", player.getZ()))
+                    .replace("$health", String.format("%.1f", player.getHealth()))
+                    .replace("$death_message", context.deathMessage())
+                    .replace("$dimension", dimensionName)
+            ;
+        }
+        return List.of(cache.split("\n"));
+    }
+    
     private @NotNull FormattedCharSequence getFormattedCharSequence(OverflowData overflow, int i, int total, int speed) {
         // Calculate how many characters were in previous lines to create a delay
         int previousChars = 0;
@@ -137,10 +192,17 @@ public class CineDeathScreen extends SlideshowScreen {
         int maxChars = overflow.lengths()[i];
         
         int finalCharsToShow = Math.min(maxChars, charsForThisLine);
-        if (total -1 == i) setTyping(finalCharsToShow == maxChars);
+        if (total - 1 == i) {
+            setTyping(finalCharsToShow != maxChars);
+        }
         
-        if (skipped) skipHandled = true;
-        boolean finalISkip = skipped;
+        if (totalCharsToShow != maxChars && skipped) {
+            textSkipped = true;
+        }
+        
+        skipHandled = skipped && textSkipped;
+        
+        boolean finalISkip = textSkipped;
         
         return (visitor) -> {
             int[] count = {0};
@@ -160,11 +222,14 @@ public class CineDeathScreen extends SlideshowScreen {
         this.exitButtons.clear();
         
         // Create the buttons but keep them hidden/inactive initially
-        Component respawnText = isHardcore() ? Component.translatable("deathScreen.spectate") : Component.translatable("deathScreen.respawn");
+        Component respawnText = isHardcore()? Component.translatable("deathScreen.spectate") : Component.translatable("deathScreen.respawn");
         
         Button respawnBtn = Button.builder(respawnText, (btn) -> {
             this.minecraft.player.respawn();
             btn.active = false;
+            onClose();
+            getMinecraft().setScreen(null);
+            
         }).bounds(this.width / 2 - 100, this.height / 2 + 20, 200, 20).build();
         
         Button titleBtn = Button.builder(Component.translatable("deathScreen.titleScreen"), (btn) -> {
@@ -187,7 +252,8 @@ public class CineDeathScreen extends SlideshowScreen {
     
     @Override
     protected void end() {
-        // This is called by SlideshowScreen when the last slide is done
+        Cinematica.getLogger().info("ended");
+        ended = true;
         setButtonsVisible(true);
     }
     
@@ -225,7 +291,7 @@ public class CineDeathScreen extends SlideshowScreen {
     @Override
     protected void renderFailed(GuiGraphics graphics, int mx, int my, String failed) {
         // We don't want to render "⚠ Asset Error" if the player wants just text
-        Cinematica.getLogger().error("Failed to load texture: {}",failed); // But we're still going to log it
+        Cinematica.getLogger().error("Failed to load texture: {}", failed); // But we're still going to log it
     }
     
     @Override
