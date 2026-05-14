@@ -15,5 +15,6 @@ public record SlideshowSlide(
         VignetteOptions vignette,
         String titleColor,
         String textColor,
-        String backgroundColor
+        String backgroundColor,
+        int secondsToSwitch
 ) {}

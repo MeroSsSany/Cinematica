@@ -38,7 +38,7 @@ public class SlideshowScreen extends Screen {
     private AudioThread thread;
     private boolean init;
     private TextureInfo currentTexture;
-    private String failed;
+    private String failed = "";
     private boolean typing;
     
     public SlideshowScreen(SlideshowSettings settings) {
@@ -75,14 +75,14 @@ public class SlideshowScreen extends Screen {
         String subtext = currentStage.subtext();
         String title = currentStage.title();
         
-        if (fadeState == FadeState.NONE && timePassed >= settings.secondsToSwitch() && !typing) {
+        if (fadeState == FadeState.NONE && timePassed >= currentStage.secondsToSwitch() && !typing) {
             fadeState = FadeState.FADE_TO_BLACK;
             fadeProgress = 0;
         }
         
         String locationName = "cinematica_slideshow_" + settings.name();
         
-        if (currentTexture == null) {
+        if (currentTexture == null && failed.isEmpty()) {
             try (FileInputStream stream = new FileInputStream(currentStage.assetPath())) {
                 currentTexture = loadTexture(stream, locationName, stage);
                 
@@ -123,45 +123,54 @@ public class SlideshowScreen extends Screen {
             
             // Transition Logic
             if (fadeProgress >= 1.0f) {
-                if (fadeState == FadeState.FADE_TO_BLACK) {
-                    if (stage < totalStage - 1) {
-                        stage++;
-                        timePassed = 0; // Reset typing effect for next stage
-                        fadeState = FadeState.FADE_FROM_BLACK;
-                        fadeProgress = 0;
-                        
-                        TextureInfo tex = currentTexture;
-                        
-                        if (tex != null && tex.texture() != null) {
-                            tex.texture().close();
-                            Minecraft.getInstance().getTextureManager().release(tex.location());
-                            currentTexture = null;
-                        }
-                        
-                        failed = "";
-                        
-                    } else {
-                        fadeState = FadeState.FADE_FROM_BLACK;
-                        fadeProgress = 0;
-                    }
-                } else if (stage == totalStage -1) {
-                    end();
-                    
-                } else {
-                    fadeState = FadeState.NONE;
-                }
+                advance();
             }
         }
         
         if (failed != null && !failed.isEmpty()) {
-            graphics.drawCenteredString(font, "⚠ Asset Error", this.width / 2, this.height / 2, 0xFFFF5555);
-            
-            List<Component> tooltipLines = Arrays.stream(failed.split("\n"))
-                    .map(Component::literal)
-                    .collect(Collectors.toList());
-            
-            graphics.renderComponentTooltip(font, tooltipLines, mx, my);
+            renderFailed(graphics, mx, my, failed);
         }
+    }
+    
+    protected void advance() {
+        if (fadeState == FadeState.FADE_TO_BLACK) {
+            if (stage < totalStage - 1) {
+                stage++;
+                timePassed = 0; // Reset typing effect for next stage
+                fadeState = FadeState.FADE_FROM_BLACK;
+                fadeProgress = 0;
+                
+                TextureInfo tex = currentTexture;
+                
+                if (tex != null && tex.texture() != null) {
+                    tex.texture().close();
+                    Minecraft.getInstance().getTextureManager().release(tex.location());
+                    currentTexture = null;
+                }
+                
+                failed = "";
+                
+            } else {
+                fadeState = FadeState.FADE_FROM_BLACK;
+                fadeProgress = 0;
+            }
+            
+        } else if (stage == totalStage -1) {
+            end();
+            
+        } else {
+            fadeState = FadeState.NONE;
+        }
+    }
+    
+    protected void renderFailed(GuiGraphics graphics, int mx, int my, String failed) {
+        graphics.drawCenteredString(font, "⚠ Asset Error", this.width / 2, this.height / 2, 0xFFFF5555);
+        
+        List<Component> tooltipLines = Arrays.stream(failed.split("\n"))
+                .map(Component::literal)
+                .collect(Collectors.toList());
+        
+        graphics.renderComponentTooltip(font, tooltipLines, mx, my);
     }
     
     protected void end() {
@@ -251,7 +260,7 @@ public class SlideshowScreen extends Screen {
         float baseScale = Math.max((float) this.width / imgW, (float) this.height / imgH);
         
         // Progress and Animation Toggles
-        float progress = (float) (timePassed / settings.secondsToSwitch());
+        float progress = (float) (timePassed / currentStage.secondsToSwitch());
         progress = Math.min(progress, 1.0f);
         float currentZoom = 1.0f;
         float panX = 0;

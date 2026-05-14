@@ -2,6 +2,7 @@ package dev.merosssany.cinematica.renderer;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import dev.merosssany.cinematica.core.Cinematica;
+import dev.merosssany.cinematica.core.data.RGBA;
 import dev.merosssany.cinematica.core.data.rendering.TextureInfo;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSlide;
@@ -18,6 +19,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import org.jetbrains.annotations.NotNull;
+import org.lwjgl.glfw.GLFW;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -30,6 +32,9 @@ public class CineDeathScreen extends SlideshowScreen {
     private double lastFrame;
     private double timePassed;
     private final List<Button> exitButtons = new ArrayList<>();
+    private boolean started;
+    private boolean skipped;
+    private boolean skipHandled;
     
     public CineDeathScreen(SlideshowSettings settings) {
         super(settings);
@@ -44,9 +49,16 @@ public class CineDeathScreen extends SlideshowScreen {
         timePassed += current - lastFrame;
         lastFrame = current;
         
-        if (timePassed == 2.5) resetTime();
-        if (timePassed > 2.5) super.render(graphics, mx, my, pTick);
+        
+        if (timePassed >= 2.5 && !started) {
+            resetTime();
+            started = true;
+        }
+        
+        if (started) super.render(graphics, mx, my, pTick);
         else graphics.fill(0,0,width,height,0xFF000000);
+        
+        if (timePassed < 0.3) Renderer.drawVignette(graphics, width, height, RGBA.fromRGBA(168, 20, 25, 1));
     }
     
     @Override
@@ -98,16 +110,18 @@ public class CineDeathScreen extends SlideshowScreen {
     protected void renderText(GuiGraphics graphics, String subtext, String title, SlideshowSlide currentStage) {
         OverflowData overflow = Renderer.layoutText(this.font, List.of(subtext.split("\n")), this.width);
         
-        // 2. Vertical Centering
         int pY = (this.height / 2) - (overflow.height() / 2);
         int pX = this.width / 2;
         int speed = currentStage.typingSpeed();
         
-        // 3. Draw Lines
         for (int i = 0; i < overflow.lines().size(); i++) {
             FormattedCharSequence line = getFormattedCharSequence(overflow, i, overflow.lines().size(), speed);
             
             graphics.drawCenteredString(font, line, pX, pY + (i * (font.lineHeight + 1)), toHex(currentStage.textColor()));
+        }
+        
+        if (!skipHandled && skipped) {
+            advance();
         }
     }
     
@@ -125,10 +139,13 @@ public class CineDeathScreen extends SlideshowScreen {
         int finalCharsToShow = Math.min(maxChars, charsForThisLine);
         if (total -1 == i) setTyping(finalCharsToShow == maxChars);
         
+        if (skipped) skipHandled = true;
+        boolean finalISkip = skipped;
+        
         return (visitor) -> {
             int[] count = {0};
             return overflow.lines().get(i).accept((index, style, codePoint) -> {
-                if (count[0] < finalCharsToShow) {
+                if (count[0] < finalCharsToShow || finalISkip) {
                     count[0]++;
                     return visitor.accept(index, style, codePoint);
                 }
@@ -139,7 +156,7 @@ public class CineDeathScreen extends SlideshowScreen {
     
     @Override
     protected void init() {
-        super.init(); // Starts your music and init logic
+        super.init();
         this.exitButtons.clear();
         
         // Create the buttons but keep them hidden/inactive initially
@@ -174,7 +191,6 @@ public class CineDeathScreen extends SlideshowScreen {
         setButtonsVisible(true);
     }
     
-    // --- Vanilla Logic Ported ---
     private void handleExitToTitleScreen() {
         if (isHardcore()) {
             this.exitToTitleScreen();
@@ -204,5 +220,28 @@ public class CineDeathScreen extends SlideshowScreen {
     @Override
     public boolean shouldCloseOnEsc() {
         return false;
+    }
+    
+    @Override
+    protected void renderFailed(GuiGraphics graphics, int mx, int my, String failed) {
+        // We don't want to render "⚠ Asset Error" if the player wants just text
+        Cinematica.getLogger().error("Failed to load texture: {}",failed); // But we're still going to log it
+    }
+    
+    @Override
+    public boolean keyPressed(int keyCode, int pScanCode, int pModifiers) {
+        if (keyCode == GLFW.GLFW_KEY_SPACE) {
+            skipped = true;
+            return true;
+        }
+        
+        return super.keyPressed(keyCode, pScanCode, pModifiers);
+    }
+    
+    @Override
+    protected void advance() {
+        super.advance();
+        skipped = false;
+        skipHandled = false;
     }
 }
