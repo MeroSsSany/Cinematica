@@ -16,7 +16,6 @@ import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
-import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
@@ -29,9 +28,12 @@ public class ForgeCinematica {
     private static SlideshowSettings settings;
     private static final ObjectKey key = new ObjectKey();
     
-    public ForgeCinematica() {
+    public ForgeCinematica() { // back compatibility
+        this(FMLJavaModLoadingContext.get());
+    }
+    
+    public ForgeCinematica(FMLJavaModLoadingContext context) {
         Cinematica.init(key);
-        IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
         DefaultFactories.register();
         ModArgumentTypes.register();
         

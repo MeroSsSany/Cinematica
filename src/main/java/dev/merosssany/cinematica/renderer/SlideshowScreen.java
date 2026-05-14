@@ -13,7 +13,6 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import org.lwjgl.glfw.GLFW;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -22,11 +21,14 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static dev.merosssany.cinematica.renderer.Renderer.drawScaledString;
+import static org.lwjgl.glfw.GLFW.glfwGetTime;
+
 public class SlideshowScreen extends Screen {
-    private final int totalStage;
-    private final SlideshowSettings settings;
-    private final float fadeSpeed;
-    private final boolean skippable;
+    protected final int totalStage;
+    protected final SlideshowSettings settings;
+    protected final float fadeSpeed;
+    protected final boolean skippable;
     
     private int stage;
     private double lastTime;
@@ -37,13 +39,14 @@ public class SlideshowScreen extends Screen {
     private boolean init;
     private TextureInfo currentTexture;
     private String failed;
+    private boolean typing;
     
     public SlideshowScreen(SlideshowSettings settings) {
         super(Component.literal("Cinematica Slideshow"));
         this.skippable = settings.skippable();
         this.settings = settings;
         this.totalStage = settings.slides().length;
-        lastTime = GLFW.glfwGetTime();
+        lastTime = glfwGetTime();
         fadeState = FadeState.FADE_FROM_BLACK;
         thread = new AudioThread(new AudioPlayer(), () -> thread.shutdown());
         if (settings.musicPath() != null) thread.startStream(settings.musicPath());
@@ -63,7 +66,7 @@ public class SlideshowScreen extends Screen {
     public void render(GuiGraphics graphics, int mx, int my, float pTick) {
         graphics.fill(0, 0, this.width, this.height, 0xFF000000);
         
-        double current = GLFW.glfwGetTime();
+        double current = glfwGetTime();
         double delta = current - lastTime;
         lastTime = current;
         timePassed += delta;
@@ -72,7 +75,7 @@ public class SlideshowScreen extends Screen {
         String subtext = currentStage.subtext();
         String title = currentStage.title();
         
-        if (fadeState == FadeState.NONE && timePassed >= settings.secondsToSwitch()) {
+        if (fadeState == FadeState.NONE && timePassed >= settings.secondsToSwitch() && !typing) {
             fadeState = FadeState.FADE_TO_BLACK;
             fadeProgress = 0;
         }
@@ -81,18 +84,7 @@ public class SlideshowScreen extends Screen {
         
         if (currentTexture == null) {
             try (FileInputStream stream = new FileInputStream(currentStage.assetPath())) {
-                NativeImage image = NativeImage.read(stream);
-                DynamicTexture tex = new DynamicTexture(image);
-                
-                float imgW = image.getWidth();
-                float imgH = image.getHeight();
-                
-                ResourceLocation location = ResourceLocation.fromNamespaceAndPath(Cinematica.MODID, locationName + "_" + stage);
-                image.close();
-                
-                currentTexture = new TextureInfo(imgW, imgH, tex, location);
-                
-                Minecraft.getInstance().getTextureManager().register(location, tex);
+                currentTexture = loadTexture(stream, locationName, stage);
                 
             } catch (FileNotFoundException e) {
                 failed = "File " + currentStage.assetPath() + " is not found.\nIt maybe a failed extraction.";
@@ -105,116 +97,13 @@ public class SlideshowScreen extends Screen {
         }
         
         if (currentTexture != null) {
-            float imgW = currentTexture.width();
-            float imgH = currentTexture.height();
-            
-            // Calculate Base Scale to fill the screen
-            float baseScale = Math.max((float) this.width / imgW, (float) this.height / imgH);
-            
-            // Progress and Animation Toggles
-            float progress = (float) (timePassed / settings.secondsToSwitch());
-            progress = Math.min(progress, 1.0f);
-            float currentZoom = 1.0f;
-            float panX = 0;
-            float panY = 0;
-            
-            float eased = progress * progress * (3 - 2 * progress); // smoothstep
-            
-            if (currentStage.kenBurns().useKenBurns()) {
-                // --- ZOOM LOGIC ---
-                // Alternate Zoom In / Zoom Out
-                float zoomStart = (stage % 2 == 0)? 1.1f : 1.0f;
-                float zoomEnd = (stage % 2 == 0)? 1.0f : 1.1f;
-                currentZoom = zoomStart + (zoomEnd - zoomStart) * progress;
-                
-                if (currentStage.kenBurns().panCameraHorizontally()) {
-                    // --- PAN LOGIC ---
-                    // Calculate the "extra" space we have to move within
-                    // We multiply by currentZoom because a zoomed-in image has more "slack" to pan
-                    float totalWidth = imgW * baseScale * currentZoom;
-                    float extraWidth = totalWidth - this.width;
-                    
-                    // Pan horizontally based on stage index
-                    if (extraWidth > 0) {
-                        if (stage % 2 == 0) {
-                            // Pan Right to Left
-                            panX = (extraWidth / 2f) - (eased * extraWidth);
-                        } else {
-                            // Pan Left to Right
-                            panX = -(extraWidth / 2f) + (eased * extraWidth);
-                        }
-                    }
-                }
-                
-                if (currentStage.kenBurns().panCameraVertically()) {
-                    float extraHeight = (imgH * baseScale * currentZoom) - this.height;
-                    
-                    if (extraHeight > 0) {
-                        panY = (stage % 2 == 0)
-                                ? (extraHeight / 2f) - (eased * extraHeight)
-                                : -(extraHeight / 2f) + (eased * extraHeight);
-                    }
-                }
-            }
-            
-            graphics.pose().pushPose();
-
-            float pivotX = this.width * currentStage.anchor().x;
-            float pivotY = this.height * currentStage.anchor().y;
-            graphics.pose().translate(pivotX, pivotY, 0);
-            
-            graphics.pose().translate(panX, panY, 0);
-
-            float finalScale = baseScale * currentZoom;
-            graphics.pose().scale(finalScale, finalScale, 1.0f);
-
-            graphics.pose().translate(-imgW * currentStage.anchor().x, -imgH * currentStage.anchor().y, 0);
-
-            graphics.blit(currentTexture.location(), 0, 0, 0, 0, (int)imgW, (int)imgH, (int)imgW, (int)imgH);
-            
-            graphics.pose().popPose();
+            renderTexture(graphics, currentStage);
         }
         
+        renderVignette(graphics, currentStage);
+        
         if (!subtext.isEmpty() || !title.isEmpty()) {
-            int width = (int) Math.max(font.width(subtext), font.width(title) * 1.5f) + 5;
-            int height = font.lineHeight + 3;
-            int charsToShow = (int) Math.min(currentStage.subtext().length(),
-                    Math.max(0, (timePassed - (1.0 / fadeSpeed)) * 10)); // 10 chars per second
-            String visibleText = currentStage.subtext().substring(0, charsToShow);
-            
-            int posX;
-            int posY = this.height - (settings.offset().y + (height * 2));
-            
-            if (settings.alternateTextPosition() && stage % 2 == 0)
-                posX = settings.offset().x; // Left side
-            else
-                posX = this.width - settings.offset().x - width; // Right side
-            
-            if (settings.largerTextBackground()) {
-                // 1. Calculate the Y-coordinates for better readability
-                int gradientTop = this.height - settings.offset().y;
-                int solidTop = this.height - (settings.offset().y / 2);
-                int centerX = this.width / 2;
-                
-                // 2. Background: Smooth fade into solid black at the bottom
-                graphics.fillGradient(0, gradientTop, this.width, solidTop, 0x00000000, 0xFF000000);
-                graphics.fill(0, solidTop, this.width, this.height, 0xFF000000);
-                
-                // 3. Title: Scaled and centered
-                // We pass centerX and set 'center' to true for the helper method
-                drawScaledString(graphics, title, centerX, solidTop - font.lineHeight - 5, 1.5f, 0xFFC8C8C8, true);
-                
-                // 4. Subtext: Centered in the solid black bar area
-                // We use drawCenteredString to ensure it's perfectly balanced
-                int subtextY = solidTop + ( (this.height - solidTop) / 2 ) - (font.lineHeight / 2);
-                graphics.drawCenteredString(font, visibleText, centerX, subtextY, 0xFFFFFFFF);
-                
-            } else {
-                // Floating Box Logic
-                graphics.fill(posX - 5, posY - 5, posX + width + 5, posY + (height * 2) + 5, 0xCC000000);
-                drawScaledString(graphics, currentStage.title(), posX + (width / 2), posY, 1.5f, 0xFFC8C8C8, true);
-                graphics.drawCenteredString(this.font, visibleText, posX + (width / 2), posY + height + 2, 0xFFFFFFFF);
-            }
+            renderText(graphics, subtext, title, currentStage);
         }
         
         if (fadeState != FadeState.NONE) {
@@ -252,8 +141,12 @@ public class SlideshowScreen extends Screen {
                         failed = "";
                         
                     } else {
-                        this.onClose();
+                        fadeState = FadeState.FADE_FROM_BLACK;
+                        fadeProgress = 0;
                     }
+                } else if (stage == totalStage -1) {
+                    end();
+                    
                 } else {
                     fadeState = FadeState.NONE;
                 }
@@ -271,9 +164,192 @@ public class SlideshowScreen extends Screen {
         }
     }
     
+    protected void end() {
+        this.onClose();
+    }
+    
+    protected void renderVignette(GuiGraphics graphics, SlideshowSlide currentStage) {
+        if (currentStage.vignette().enable())
+            Renderer.drawVignette(graphics, width, height, currentStage.vignette().color());
+    }
+    
+    protected void renderText(GuiGraphics graphics, String subtext, String title, SlideshowSlide currentStage) {
+        int width = (int) Math.max(font.width(subtext), font.width(title) * 1.5f) + 5;
+        int height = font.lineHeight + 3;
+        int speed = currentStage.typingSpeed();
+        String visibleText = typewriter(subtext, speed);
+        
+        typing = !visibleText.equals(subtext);
+        
+        int posX;
+        int posY = this.height - (settings.offset().y + (height * 2));
+        
+        if (settings.alternateTextPosition() && stage % 2 == 0)
+            posX = settings.offset().x; // Left side
+        else
+            posX = this.width - settings.offset().x - width; // Right side
+        
+        int titleColor = toHex(currentStage.titleColor());
+        int textColor = toHex(currentStage.textColor());
+        int backgroundColor = toHex(currentStage.backgroundColor());
+        
+        if (settings.largerTextBackground()) {
+            // 1. Calculate the Y-coordinates for better readability
+            int gradientTop = this.height - settings.offset().y;
+            int solidTop = this.height - (settings.offset().y / 2);
+            int centerX = this.width / 2;
+            
+            // Smooth fade into solid black at the bottom
+            graphics.fillGradient(0, gradientTop, this.width, solidTop, 0x00000000, backgroundColor);
+            graphics.fill(0, solidTop, this.width, this.height, backgroundColor);
+            
+            // We pass centerX and set 'center' to true for the helper method
+            drawScaledString(this.font, graphics, title, centerX, solidTop - font.lineHeight - 5, 1.5f, titleColor, true);
+            
+            // We use drawCenteredString to ensure it's perfectly balanced
+            int subtextY = solidTop + ( (this.height - solidTop) / 2 ) - (font.lineHeight / 2);
+            graphics.drawCenteredString(font, visibleText, centerX, subtextY, textColor);
+            
+        } else {
+            // Floating Box Logic
+            graphics.fill(posX - 5, posY - 5, posX + width + 5, posY + (height * 2) + 5, backgroundColor);
+            drawScaledString(this.font, graphics, currentStage.title(), posX + (width / 2), posY, 1.5f, titleColor, true);
+            graphics.drawCenteredString(this.font, visibleText, posX + (width / 2), posY + height + 2, textColor);
+        }
+    }
+    
+    protected static int toHex(String text) {
+        return (int) Long.parseUnsignedLong(text.replace("#",""), 16);
+    }
+    
+    private String typewriter(String subtext, int speed) {
+        int charsToShow = (int) Math.min(subtext.length(),
+                Math.max(0, (timePassed - (1.0 / fadeSpeed)) * speed));
+        return subtext.substring(0, charsToShow);
+    }
+    
+    protected TextureInfo loadTexture(FileInputStream stream, String locationName, int stage) throws IOException {
+        NativeImage image = NativeImage.read(stream);
+        DynamicTexture tex = new DynamicTexture(image);
+        
+        float imgW = image.getWidth();
+        float imgH = image.getHeight();
+        
+        ResourceLocation location = ResourceLocation.fromNamespaceAndPath(Cinematica.MODID, locationName + "_" + stage);
+        image.close();
+        
+        
+        Minecraft.getInstance().getTextureManager().register(location, tex);
+        return new TextureInfo(imgW, imgH, tex, location);
+    }
+    
+    protected void renderTexture(GuiGraphics graphics, SlideshowSlide currentStage) {
+        float imgW = currentTexture.width();
+        float imgH = currentTexture.height();
+        
+        // Calculate Base Scale to fill the screen
+        float baseScale = Math.max((float) this.width / imgW, (float) this.height / imgH);
+        
+        // Progress and Animation Toggles
+        float progress = (float) (timePassed / settings.secondsToSwitch());
+        progress = Math.min(progress, 1.0f);
+        float currentZoom = 1.0f;
+        float panX = 0;
+        float panY = 0;
+        
+        float eased = progress * progress * (3 - 2 * progress); // smoothstep
+        
+        if (currentStage.kenBurns().useKenBurns()) {
+            // --- ZOOM LOGIC ---
+            // Alternate Zoom In / Zoom Out
+            float zoomStart = (stage % 2 == 0)? 1.1f : 1.0f;
+            float zoomEnd = (stage % 2 == 0)? 1.0f : 1.1f;
+            currentZoom = zoomStart + (zoomEnd - zoomStart) * progress;
+            
+            if (currentStage.kenBurns().panCameraHorizontally()) {
+                // --- PAN LOGIC ---
+                // Calculate the extra space we have to move within
+                // We multiply by currentZoom because a zoomed-in image has more "slack" to pan
+                float totalWidth = imgW * baseScale * currentZoom;
+                float extraWidth = totalWidth - this.width;
+                
+                // Pan horizontally based on stage index
+                if (extraWidth > 0) {
+                    if (stage % 2 == 0) {
+                        // Pan Right to Left
+                        panX = (extraWidth / 2f) - (eased * extraWidth);
+                    } else {
+                        // Pan Left to Right
+                        panX = -(extraWidth / 2f) + (eased * extraWidth);
+                    }
+                }
+            }
+            
+            if (currentStage.kenBurns().panCameraVertically()) {
+                float extraHeight = (imgH * baseScale * currentZoom) - this.height;
+                
+                if (extraHeight > 0) {
+                    panY = (stage % 2 == 0)
+                            ? (extraHeight / 2f) - (eased * extraHeight)
+                            : -(extraHeight / 2f) + (eased * extraHeight);
+                }
+            }
+        }
+        
+        graphics.pose().pushPose();
+        
+        float pivotX = this.width * currentStage.anchor().x;
+        float pivotY = this.height * currentStage.anchor().y;
+        graphics.pose().translate(pivotX, pivotY, 0);
+        
+        graphics.pose().translate(panX, panY, 0);
+        
+        float finalScale = baseScale * currentZoom;
+        graphics.pose().scale(finalScale, finalScale, 1.0f);
+        
+        graphics.pose().translate(-imgW * currentStage.anchor().x, -imgH * currentStage.anchor().y, 0);
+        
+        graphics.blit(currentTexture.location(), 0, 0, 0, 0, (int)imgW, (int)imgH, (int)imgW, (int)imgH);
+        
+        graphics.pose().popPose();
+    }
+    
+    public int getStage() {
+        return stage;
+    }
+    
+    public void setStage(int stage) {
+        this.stage = stage;
+    }
+    
+    public FadeState getFadeState() {
+        return fadeState;
+    }
+    
+    protected void setFadeState(FadeState fadeState) {
+        this.fadeState = fadeState;
+    }
+    
+    protected double getTimePassed() {
+        return timePassed;
+    }
+    
+    protected void resetTime() {
+        timePassed = 0;
+        lastTime = glfwGetTime();
+    }
+    
     @Override
     public boolean shouldCloseOnEsc() {
         return skippable;
+    }
+    
+    public boolean isTyping() {
+        return typing;
+    }
+    
+    protected void setTyping(boolean typing) {
+        this.typing = typing;
     }
     
     @Override
@@ -289,19 +365,5 @@ public class SlideshowScreen extends Screen {
             player.startFadeOut(1.5f);
             thread.requestExitAfterPlayback();
         });
-    }
-    
-    protected void drawScaledString(GuiGraphics graphics, String text, int x, int y, float scale, int color, boolean center) {
-        graphics.pose().pushPose();
-        graphics.pose().translate(x, y, 0);
-        graphics.pose().scale(scale, scale, 1.0f);
-        
-        if (center) {
-            graphics.drawCenteredString(this.font, text, 0, 0, color);
-        } else {
-            graphics.drawString(this.font, text, 0, 0, color, true);
-        }
-        
-        graphics.pose().popPose();
     }
 }

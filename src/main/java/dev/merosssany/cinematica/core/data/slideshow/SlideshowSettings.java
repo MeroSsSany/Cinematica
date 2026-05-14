@@ -2,10 +2,8 @@ package dev.merosssany.cinematica.core.data.slideshow;
 
 import com.google.gson.*;
 import dev.merosssany.cinematica.core.FileManager;
-import dev.merosssany.cinematica.core.data.handler.FileAdapter;
-import dev.merosssany.cinematica.core.data.handler.FileRelativeAdapter;
-import dev.merosssany.cinematica.core.data.handler.Vector2fAdapter;
-import dev.merosssany.cinematica.core.data.handler.Vector2iAdapter;
+import dev.merosssany.cinematica.core.data.RGBA;
+import dev.merosssany.cinematica.core.data.handler.*;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Vector2f;
 import org.joml.Vector2i;
@@ -36,20 +34,22 @@ public record SlideshowSettings(
     }
     
     public static @NotNull Gson getGson(Path root) {
-        return new GsonBuilder()
-                .registerTypeAdapter(Vector2i.class, new Vector2iAdapter())
-                .registerTypeAdapter(Vector2f.class, new Vector2fAdapter())
+        return getGsonBuilder()
                 .registerTypeAdapter(File.class, new FileRelativeAdapter(root))
-                .setPrettyPrinting()
                 .create();
     }
     
-    public static @NotNull Gson getGson() {
+    public static @NotNull GsonBuilder getGsonBuilder() {
         return new GsonBuilder()
                 .registerTypeAdapter(Vector2i.class, new Vector2iAdapter())
                 .registerTypeAdapter(Vector2f.class, new Vector2fAdapter())
+                .registerTypeAdapter(RGBA.class, new RgbaAdaptor())
+                .setPrettyPrinting();
+    }
+    
+    public static Gson getGson() {
+        return getGsonBuilder()
                 .registerTypeAdapter(File.class, new FileAdapter())
-                .setPrettyPrinting()
                 .create();
     }
     

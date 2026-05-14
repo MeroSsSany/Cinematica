@@ -10,5 +10,10 @@ public record SlideshowSlide(
         boolean isImage,
         File assetPath,
         Vector2f anchor,
-        KenBurnsOptions kenBurns
+        int typingSpeed,
+        KenBurnsOptions kenBurns,
+        VignetteOptions vignette,
+        String titleColor,
+        String textColor,
+        String backgroundColor
 ) {}

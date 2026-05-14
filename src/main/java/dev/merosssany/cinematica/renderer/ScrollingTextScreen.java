@@ -16,6 +16,8 @@ import org.lwjgl.glfw.GLFW;
 import java.io.File;
 import java.io.IOException;
 
+import static dev.merosssany.cinematica.renderer.Renderer.drawScaledString;
+
 public class ScrollingTextScreen extends Screen {
     protected TextureInfo texture;
     protected String[] lines;
@@ -68,7 +70,7 @@ public class ScrollingTextScreen extends Screen {
         this.fadeSpeed = fadeSpeed;
         
         if (logo == null || logo.isEmpty()) {
-            texture = TextureInfo.fromResourceLocation(new ResourceLocation(Cinematica.MODID, "textures/gui/backgrounds/main_bg.png"));
+            texture = TextureInfo.fromResourceLocation(ResourceLocation.fromNamespaceAndPath(Cinematica.MODID, "textures/gui/backgrounds/main_bg.png"));
         } else {
             texture = CinematicaImageReader.read(logo, "cinematica_scrolling_text_logo");
         }
@@ -83,7 +85,7 @@ public class ScrollingTextScreen extends Screen {
             File file = new File(music);
             
             if (file.exists()) audioThread.startStream(file);
-            else audioThread.startStream(ResourceLocationReader.resourceLocationToStream(new ResourceLocation(music)));
+            else audioThread.startStream(ResourceLocationReader.resourceLocationToStream(ResourceLocation.parse(music)));
         
             audioThread.start();
         }
@@ -173,17 +175,15 @@ public class ScrollingTextScreen extends Screen {
             int alphaBits = (int) (textAlpha * 255.0f);
             int textColor = (alphaBits << 24) | 0xFFFFFF; // ARGB: Alpha + White
             
-            // 2. Draw the message with the calculated alpha
             float finalScale = 2.5f;
             int finalY = (this.height / 2) - (int)((font.lineHeight * finalScale) / 2);
             
-            drawScaledString(graphics, finalMessage, this.width / 2, finalY, finalScale, textColor, true);
+            drawScaledString(this.font, graphics, finalMessage, this.width / 2, finalY, finalScale, textColor, true);
             
-            // 3. Only start the "Exit Timer" once the fade is completely finished
             if (fadeState == FadeState.NONE) {
                 timePassed += delta;
                 if (timePassed > 5.0) {
-                    this.onClose();
+                    end();
                 }
             }
         }
@@ -207,6 +207,7 @@ public class ScrollingTextScreen extends Screen {
                 if (fadeState == FadeState.FADE_TO_BLACK) {
                     fadeState = FadeState.FADE_FROM_BLACK;
                     renderFinal = true;
+                    fadeProgress = 0;
                     
                 } else {
                     fadeState = FadeState.NONE;
@@ -215,18 +216,8 @@ public class ScrollingTextScreen extends Screen {
         }
     }
     
-    protected void drawScaledString(GuiGraphics graphics, String text, int x, int y, float scale, int color, boolean center) {
-        graphics.pose().pushPose();
-        graphics.pose().translate(x, y, 0);
-        graphics.pose().scale(scale, scale, 1.0f);
-        
-        if (center) {
-            graphics.drawCenteredString(this.font, text, 0, 0, color);
-        } else {
-            graphics.drawString(this.font, text, 0, 0, color, true);
-        }
-        
-        graphics.pose().popPose();
+    protected void end() {
+        this.onClose();
     }
     
     @Override

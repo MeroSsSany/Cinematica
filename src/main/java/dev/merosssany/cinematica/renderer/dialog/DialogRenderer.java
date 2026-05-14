@@ -1,28 +1,29 @@
-package dev.merosssany.cinematica.renderer;
+package dev.merosssany.cinematica.renderer.dialog;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.core.data.dialog.DialogSettings;
 import dev.merosssany.cinematica.core.data.dialog.DialogStage;
 import dev.merosssany.cinematica.core.data.rendering.TextureInfo;
+import dev.merosssany.cinematica.renderer.OverflowData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.renderer.texture.DynamicTexture;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.EntityType;
+import net.minecraftforge.registries.ForgeRegistries;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
+
+import static dev.merosssany.cinematica.renderer.Renderer.layoutText;
 
 public class DialogRenderer {
     public static class Cache {
@@ -75,6 +76,12 @@ public class DialogRenderer {
         public void keyPressed(int keyCode, int scanCode, int modifiers) {
             if (input != null && input.isFocused()) input.keyPressed(keyCode, scanCode, modifiers);
         }
+        
+        public void apply(OverflowData data) {
+            lineLengths = data.lengths();
+            parsedDialog = data.lines();
+            height = data.height();
+        }
     }
     
     public static boolean render(
@@ -94,7 +101,7 @@ public class DialogRenderer {
         
         if (cache.parsedDialog == null) {
             List<String> text = Arrays.stream(settings.dialogStages()[cache.currentDialog].text().split("\n")).toList();
-            checkOverflow(cache, font, text, screenWidth);
+            cache.apply(layoutText(font, text, screenWidth));
         }
         
         List<FormattedCharSequence> parsedDialog = cache.parsedDialog;
@@ -123,7 +130,7 @@ public class DialogRenderer {
                         try (FileInputStream stream = new FileInputStream(textureFile)) {
                             NativeImage image = NativeImage.read(stream);
                             DynamicTexture dynamicTexture = new DynamicTexture(image);
-                            ResourceLocation location = new ResourceLocation(Cinematica.MODID, "cinematica_dialog_" + settings.dialogName() + "_" + cache.currentDialog);
+                            ResourceLocation location = ResourceLocation.fromNamespaceAndPath(Cinematica.MODID, "cinematica_dialog_" + settings.dialogName() + "_" + cache.currentDialog);
                             Minecraft.getInstance().getTextureManager().register(location, dynamicTexture);
                             
                             cache.tempTex = new TextureInfo(
@@ -141,7 +148,7 @@ public class DialogRenderer {
                         }
                         
                     } else {
-                        ResourceLocation location = new ResourceLocation(texture);
+                        ResourceLocation location = ResourceLocation.parse(texture);
                         
                         if (Minecraft.getInstance().getResourceManager().getResource(location).isPresent()) {
                             cache.tempTex = TextureInfo.fromResourceLocation(location);
@@ -151,13 +158,15 @@ public class DialogRenderer {
                 } else cache.tempTex = TextureInfo.empty();
             }
             
-            if (!cache.tempTex.isEmpty()) {
-                int texX = 24;
-                int texY = minY + 16;
-                int texSize = 64;
-                
-                graphics.fill(texX - 2, texY - 2, texX + texSize + 2, texY + texSize + 2, 0xFFFFFFFF);
-                graphics.blit(cache.tempTex.location(), texX, texY, 0, 0, texSize, texSize, texSize, texSize);
+            if (cache.tempTex != null) {
+                if (!cache.tempTex.isEmpty()) {
+                    int texX = 24;
+                    int texY = minY + 16;
+                    int texSize = 64;
+                    
+                    graphics.fill(texX - 2, texY - 2, texX + texSize + 2, texY + texSize + 2, 0xFFFFFFFF);
+                    graphics.blit(cache.tempTex.location(), texX, texY, 0, 0, texSize, texSize, texSize, texSize);
+                }
             }
         }
         
@@ -165,12 +174,12 @@ public class DialogRenderer {
         if (current.name() != null && !current.name().isEmpty()) {
             name = current.name();
         } else if (current.entityType() != null && !current.entityType().isEmpty()) {
-            ResourceLocation location = new ResourceLocation(current.entityType());
+            ResourceLocation location = ResourceLocation.parse(current.entityType());
             
-            Optional<EntityType<?>> entityType = BuiltInRegistries.ENTITY_TYPE.getOptional(location);
+            EntityType<?> entityType = ForgeRegistries.ENTITY_TYPES.getValue(location);
             
-            if (entityType.isPresent()) {
-                name = entityType.get().getDescription().getString();
+            if (entityType != null) {
+                name = entityType.getDescription().getString();
             }
         }
         
@@ -261,38 +270,5 @@ public class DialogRenderer {
         }
         
         return false;
-    }
-    
-    private static int getLength(FormattedCharSequence charSequence) {
-        int[] l = {0};
-        charSequence.accept((index, style, codepoint) -> {
-            l[0]++;
-            return true;
-        });
-        return l[0];
-    }
-    
-    private static void checkOverflow(Cache cache, Font font, List<String> text, int screenWidth) {
-        List<FormattedCharSequence> wrappedLines = new ArrayList<>();
-        int maxWidth = screenWidth - 32;
-        int fontHeight = font.lineHeight + 1;
-        int totalHeight;
-        
-        for (String originalLine : text) {
-            List<FormattedCharSequence> splitLines = font.split(Component.literal(originalLine), maxWidth);
-            
-            wrappedLines.addAll(splitLines);
-        }
-        
-        totalHeight = wrappedLines.size() * fontHeight;
-        
-        int[] length = new int[wrappedLines.size()];
-        for (int i = 0; i < length.length; i++) {
-            length[i] = getLength(wrappedLines.get(i));
-        }
-        
-        cache.parsedDialog = wrappedLines;
-        cache.height = totalHeight;
-        cache.lineLengths = length;
     }
 }
