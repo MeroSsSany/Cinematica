@@ -1,7 +1,6 @@
 package dev.merosssany.cinematica.core.data.slideshow;
 
 import com.google.gson.*;
-import dev.merosssany.cinematica.core.FileManager;
 import dev.merosssany.cinematica.core.data.RGBA;
 import dev.merosssany.cinematica.core.data.handler.*;
 import net.minecraft.ChatFormatting;
@@ -13,7 +12,6 @@ import org.joml.Vector2i;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
 
 public record SlideshowSettings(
         SlideshowSlide[] slides,
@@ -23,22 +21,12 @@ public record SlideshowSettings(
         float fadeSpeed,
         String name,
         Vector2i offset,
-        File musicPath
+        String musicPath
 ) {
-    public JsonObject toJson(Path root) {
-        return getGson(root).toJsonTree(this).getAsJsonObject();
-    }
-    
-    public static SlideshowSettings fromJson(JsonObject json, Path root) {
-        Gson gson = getGson(root);
+    public static SlideshowSettings fromJson(JsonObject json) {
+        Gson gson = getGson();
         
         return gson.fromJson(json, SlideshowSettings.class);
-    }
-    
-    public static @NotNull Gson getGson(Path root) {
-        return getGsonBuilder()
-                .registerTypeAdapter(File.class, new FileRelativeAdapter(root))
-                .create();
     }
     
     public static @NotNull GsonBuilder getGsonBuilder() {
@@ -56,7 +44,7 @@ public record SlideshowSettings(
     }
     
     public JsonObject toJson() throws IOException {
-        return toJson(FileManager.getCinematicaFolder().resolve(name));
+        return getGson().toJsonTree(this).getAsJsonObject();
     }
     
     public Component toComponentJson() throws IOException {

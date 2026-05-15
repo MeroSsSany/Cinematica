@@ -35,7 +35,7 @@ public class OpenSlideshowPacket {
         context.enqueueWork(() -> {
             // We will assume the player downloaded the assets
             try {
-                Cinematica.register(settings);
+                Cinematica.register(settings, Cinematica.getRoot(settings));
             } catch (InvalidJsonException e) {
                 Cinematica.getLogger().error("Failed to register scene",e);
             }

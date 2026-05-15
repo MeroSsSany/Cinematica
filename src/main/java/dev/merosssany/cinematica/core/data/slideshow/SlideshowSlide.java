@@ -2,13 +2,11 @@ package dev.merosssany.cinematica.core.data.slideshow;
 
 import org.joml.Vector2f;
 
-import java.io.File;
-
 public record SlideshowSlide(
         String title,
         String subtext,
         boolean isImage,
-        File assetPath,
+        String assetPath,
         Vector2f anchor,
         int typingSpeed,
         KenBurnsOptions kenBurns,

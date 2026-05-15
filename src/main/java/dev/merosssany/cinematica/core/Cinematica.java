@@ -7,11 +7,12 @@ import dev.merosssany.cinematica.core.data.scrollingtext.CreditsSettings;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
 import dev.merosssany.cinematica.ObjectKey;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSlide;
+import net.minecraft.client.Minecraft;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.resources.Resource;
 import org.slf4j.Logger;
 
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -22,6 +23,7 @@ public final class Cinematica {
     
     private static final Map<String, SlideshowSettings> slideshows = new ConcurrentHashMap<>();
     private static final Map<String, CreditsSettings> credits = new ConcurrentHashMap<>();
+    private static final Map<SlideshowSettings, Path> slideshowRoots = new ConcurrentHashMap<>();
     private static final Logger logger = LogUtils.getLogger();
     
     private static ObjectKey lock;
@@ -38,25 +40,50 @@ public final class Cinematica {
         Cinematica.lock = lock;
     }
     
-    public static void register(SlideshowSettings settings) throws InvalidJsonException {
+    public static InputStream getAsset(String path, Path root) throws IOException {
+        boolean isResource = path.matches("[a-z0-9_-]+:[a-z0-9_-]+");
+        
+        if (isResource) {
+            ResourceLocation location = ResourceLocation.parse(path);
+            Optional<Resource> optional = Minecraft.getInstance().getResourceManager().getResource(location);
+            
+            if (optional.isPresent()) {
+                Resource resource = optional.get();
+                return resource.open();
+            }
+            
+            throw new FileNotFoundException("Couldn't find ResourceLocation: "+ location);
+            
+        } else {
+            return new FileInputStream(root.resolve(path).toFile());
+        }
+    }
+    
+    public static void register(SlideshowSettings settings, Path root) throws InvalidJsonException {
         if (frozen) {
             throw new IllegalStateException("Cinematica is frozen!");
         }
         
         // Verifying the assets
-        if (settings.musicPath().exists()) {
-            logger.error("Music file does not exist: {}", settings.musicPath().getAbsolutePath());
+        try {
+            getAsset(settings.musicPath(), root).close();
+        } catch (IOException e) {
+            logger.error("Couldn't load music file", e);
         }
         
         SlideshowSlide[] slides = settings.slides();
         if (slides == null) throw new InvalidJsonException("There is no slides to register");
         
         for (SlideshowSlide slide : slides) {
-            if (slide.assetPath().exists()) continue;
-            logger.error("Asset does not exist: {}", slide.assetPath().getAbsolutePath());
+            try {
+                getAsset(slide.assetPath(), root).close();
+            } catch (IOException e) {
+                logger.error("Couldn't access the asset: {}", slide.assetPath());
+            }
         }
         
         slideshows.put(settings.name(), settings);
+        slideshowRoots.put(settings, root);
         logger.info("Registered slideshow \"{}\" successfully", settings.name());
     }
     
@@ -210,7 +237,7 @@ public final class Cinematica {
                     j = JsonParser.parseReader(reader).getAsJsonObject();
                 }
                 
-                register(SlideshowSettings.fromJson(j, root));
+                register(SlideshowSettings.fromJson(j), root);
             }
         }
     }
@@ -224,14 +251,11 @@ public final class Cinematica {
     }
     
     public static String formalize(String name) {
-        StringBuilder builder = new StringBuilder();
-        
-        for (char c : name.toCharArray()) {
-            if (Character.isAlphabetic(c)) builder.append(Character.toLowerCase(c));
-            if (c == ' ') builder.append("_");
-        }
-        
-        return builder.toString();
+        return name.toLowerCase().replaceAll("[^a-z0-9_\\-\\s]", "").replace(" ","_");
+    }
+    
+    public static Path getRoot(SlideshowSettings settings) {
+        return slideshowRoots.get(settings);
     }
     
     public record LoadDetail(Path path, String msg, boolean failure) {

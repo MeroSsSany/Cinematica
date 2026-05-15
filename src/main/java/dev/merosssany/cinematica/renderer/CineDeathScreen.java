@@ -21,8 +21,8 @@ import net.minecraft.world.entity.LivingEntity;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -81,7 +81,7 @@ public class CineDeathScreen extends SlideshowScreen {
     }
     
     @Override
-    protected TextureInfo loadTexture(FileInputStream stream, String locationName, int stage) throws IOException {
+    protected TextureInfo loadTexture(InputStream stream, String locationName, int stage) throws IOException {
         NativeImage image = NativeImage.read(stream);
         DynamicTexture tex = new DynamicTexture(image);
         

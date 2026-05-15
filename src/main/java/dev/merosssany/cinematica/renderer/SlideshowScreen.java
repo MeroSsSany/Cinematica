@@ -14,13 +14,13 @@ import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
+import java.io.*;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static dev.merosssany.cinematica.core.Cinematica.*;
 import static dev.merosssany.cinematica.renderer.Renderer.drawScaledString;
 import static org.lwjgl.glfw.GLFW.glfwGetTime;
 
@@ -29,6 +29,7 @@ public class SlideshowScreen extends Screen {
     protected final SlideshowSettings settings;
     protected final float fadeSpeed;
     protected final boolean skippable;
+    protected final Path root;
     
     private int stage;
     private double lastTime;
@@ -42,14 +43,25 @@ public class SlideshowScreen extends Screen {
     private boolean typing;
     
     public SlideshowScreen(SlideshowSettings settings) {
+        this(settings, Cinematica.getRoot(settings));
+    }
+    
+    public SlideshowScreen(SlideshowSettings settings, Path root) {
         super(Component.literal("Cinematica Slideshow"));
         this.skippable = settings.skippable();
         this.settings = settings;
         this.totalStage = settings.slides().length;
+        this.root = root;
         lastTime = glfwGetTime();
         fadeState = FadeState.FADE_FROM_BLACK;
         thread = new AudioThread(new AudioPlayer(), () -> thread.shutdown());
-        if (settings.musicPath() != null) thread.startStream(settings.musicPath());
+        if (!settings.musicPath().isEmpty()) {
+            try {
+                thread.startStream(getAsset(settings.musicPath(), root));
+            } catch (IOException e) {
+                Cinematica.getLogger().error("Failed to load music",e);
+            }
+        }
         fadeSpeed = settings.fadeSpeed();
     }
     
@@ -83,11 +95,11 @@ public class SlideshowScreen extends Screen {
         String locationName = "cinematica_slideshow_" + Cinematica.formalize(settings.name());
         
         if (currentTexture == null && failed.isEmpty()) {
-            try (FileInputStream stream = new FileInputStream(currentStage.assetPath())) {
+            try (InputStream stream = getAsset(currentStage.assetPath(), root)) {
                 currentTexture = loadTexture(stream, locationName, stage);
                 
             } catch (FileNotFoundException e) {
-                failed = "File " + currentStage.assetPath() + " is not found.\nIt maybe a failed extraction.";
+                failed = "File " + settings.musicPath() + " is not found.\nIt maybe a failed extraction.";
                 Cinematica.getLogger().error(failed, e);
                 
             } catch (IOException e) {
@@ -234,7 +246,7 @@ public class SlideshowScreen extends Screen {
         return subtext.substring(0, charsToShow);
     }
     
-    protected TextureInfo loadTexture(FileInputStream stream, String locationName, int stage) throws IOException {
+    protected TextureInfo loadTexture(InputStream stream, String locationName, int stage) throws IOException {
         NativeImage image = NativeImage.read(stream);
         DynamicTexture tex = new DynamicTexture(image);
         
