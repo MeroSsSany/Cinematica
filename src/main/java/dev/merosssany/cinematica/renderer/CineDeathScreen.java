@@ -20,7 +20,6 @@ import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.LivingEntity;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
-import org.lwjgl.glfw.GLFW;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -34,8 +33,6 @@ public class CineDeathScreen extends SlideshowScreen {
     private double timePassed;
     private final List<Button> exitButtons = new ArrayList<>();
     private boolean started;
-    private boolean skipped;
-    private boolean skipHandled;
     private int prevStage = -1;
     private String cache;
     private boolean textSkipped;
@@ -57,17 +54,23 @@ public class CineDeathScreen extends SlideshowScreen {
         timePassed += current - lastFrame;
         lastFrame = current;
         
-        
+        // Initial Delay logic
         if (timePassed >= 2.5 && !started) {
             resetTime();
             started = true;
         }
         
-        if (started && !ended) super.render(graphics, mx, my, pTick);
-        else graphics.fill(0, 0, width, height, 0xFF000000);
+        if (started && !ended) {
+            super.render(graphics, mx, my, pTick);
+        } else {
+            graphics.fill(0, 0, width, height, 0xFF000000);
+        }
         
         if (ended) {
-            Renderer.drawScaledString(font, graphics,"You died!", (int) (width / 0.5f), (int) (height / 0.1f), 1.5f,0xFFFFFFFF, true);
+            int x = (int) (width * 0.5f);
+            float y = height * 0.25f;
+            Renderer.drawScaledString(font, graphics,"You died!", x, (int) y, 2.5f,0xFFFF0000, true);
+            graphics.drawCenteredString(font, settings.name(), x, (int) (height * 3f), 0xFFFFFFFF);
             
             for (Renderable renderable : this.renderables) {
                 renderable.render(graphics, mx, my, pTick);
@@ -90,7 +93,6 @@ public class CineDeathScreen extends SlideshowScreen {
         float imgH = image.getHeight();
         
         ResourceLocation location = ResourceLocation.fromNamespaceAndPath(Cinematica.MODID, locationName + "_" + stage);
-        image.close();
         
         Minecraft.getInstance().getTextureManager().register(location, tex);
         return new TextureInfo(imgW, imgH, tex, location);
@@ -134,10 +136,6 @@ public class CineDeathScreen extends SlideshowScreen {
             FormattedCharSequence line = getFormattedCharSequence(overflow, i, overflow.lines().size(), speed);
             
             graphics.drawCenteredString(font, line, pX, pY + (i * (font.lineHeight + 1)), toHex(currentStage.textColor()));
-        }
-        
-        if (!skipHandled && skipped) {
-            advance();
         }
     }
     
@@ -194,20 +192,13 @@ public class CineDeathScreen extends SlideshowScreen {
         int finalCharsToShow = Math.min(maxChars, charsForThisLine);
         if (total - 1 == i) {
             setTyping(finalCharsToShow != maxChars);
+            textSkipped = isTyping();
         }
-        
-        if (totalCharsToShow != maxChars && skipped) {
-            textSkipped = true;
-        }
-        
-        skipHandled = skipped && textSkipped;
-        
-        boolean finalISkip = textSkipped;
         
         return (visitor) -> {
             int[] count = {0};
             return overflow.lines().get(i).accept((index, style, codePoint) -> {
-                if (count[0] < finalCharsToShow || finalISkip) {
+                if (count[0] < finalCharsToShow) {
                     count[0]++;
                     return visitor.accept(index, style, codePoint);
                 }
@@ -239,8 +230,7 @@ public class CineDeathScreen extends SlideshowScreen {
         this.exitButtons.add(this.addRenderableWidget(respawnBtn));
         this.exitButtons.add(this.addRenderableWidget(titleBtn));
         
-        // Start them as invisible so they don't ruin the slideshow
-        setButtonsVisible(false);
+        setButtonsVisible(ended);
     }
     
     private void setButtonsVisible(boolean visible) {
@@ -255,6 +245,7 @@ public class CineDeathScreen extends SlideshowScreen {
         Cinematica.getLogger().info("ended");
         ended = true;
         setButtonsVisible(true);
+        cleanup();
     }
     
     private void handleExitToTitleScreen() {
@@ -291,23 +282,17 @@ public class CineDeathScreen extends SlideshowScreen {
     @Override
     protected void renderFailed(GuiGraphics graphics, int mx, int my, String failed) {
         // We don't want to render "⚠ Asset Error" if the player wants just text
-        Cinematica.getLogger().error("Failed to load texture: {}", failed); // But we're still going to log it
     }
     
     @Override
     public boolean keyPressed(int keyCode, int pScanCode, int pModifiers) {
-        if (keyCode == GLFW.GLFW_KEY_SPACE) {
-            skipped = true;
-            return true;
-        }
-        
+        // Skipping is a little unreliable
         return super.keyPressed(keyCode, pScanCode, pModifiers);
     }
     
     @Override
     protected void advance() {
         super.advance();
-        skipped = false;
-        skipHandled = false;
+        textSkipped = false;
     }
 }

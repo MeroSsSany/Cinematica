@@ -48,7 +48,7 @@ public class Renderer {
     
     public static void drawScaledString(Font font, GuiGraphics graphics, String text, int x, int y, float scale, int color, boolean center) {
         graphics.pose().pushPose();
-        graphics.pose().translate(x, y, 0);
+        graphics.pose().translate(x, y, 100);
         graphics.pose().scale(scale, scale, 1.0f);
         
         if (center) {
@@ -64,20 +64,40 @@ public class Renderer {
         RenderSystem.disableDepthTest();
         RenderSystem.depthMask(false);
         
-        // This blend mode is great for "staining" the screen
-        RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        RenderSystem.enableBlend();
         
-        // Set the color to a deep red with partial alpha
-        // This turns the white parts of the vignette texture into red
-        graphics.setColor(color.r(), color.g(), color.b(), color.a());
+        RenderSystem.blendFuncSeparate(
+                GlStateManager.SourceFactor.ZERO,
+                GlStateManager.DestFactor.ONE_MINUS_SRC_COLOR,
+                GlStateManager.SourceFactor.ONE,
+                GlStateManager.DestFactor.ZERO
+        );
         
-        graphics.blit(VIGNETTE_LOCATION, 0, 0, 0, 0, width, height, width, height);
+        graphics.setColor(
+                color.r(),
+                color.g(),
+                color.b(),
+                color.a()
+        );
         
-        // Reset color so it doesn't affect the text
-        graphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
+        graphics.pose().pushPose();
+        graphics.pose().translate(0, 0, 450);
+        
+        graphics.blit(
+                VIGNETTE_LOCATION,
+                0, 0,
+                0, 0,
+                width, height,
+                width, height
+        );
+        
+        graphics.pose().popPose();
+        
+        graphics.setColor(1f, 1f, 1f, 1f);
+        
+        RenderSystem.defaultBlendFunc();
         
         RenderSystem.depthMask(true);
         RenderSystem.enableDepthTest();
-        RenderSystem.defaultBlendFunc();
     }
 }

@@ -80,7 +80,7 @@ public class SlideshowScreen extends Screen {
             fadeProgress = 0;
         }
         
-        String locationName = "cinematica_slideshow_" + settings.name();
+        String locationName = "cinematica_slideshow_" + Cinematica.formalize(settings.name());
         
         if (currentTexture == null && failed.isEmpty()) {
             try (FileInputStream stream = new FileInputStream(currentStage.assetPath())) {
@@ -132,32 +132,29 @@ public class SlideshowScreen extends Screen {
         }
     }
     
+    public float getFadeProgress() {
+        return fadeProgress;
+    }
+    
     protected void advance() {
         if (fadeState == FadeState.FADE_TO_BLACK) {
             if (stage < totalStage - 1) {
                 stage++;
-                timePassed = 0; // Reset typing effect for next stage
+                timePassed = 0;
                 fadeState = FadeState.FADE_FROM_BLACK;
                 fadeProgress = 0;
                 
-                TextureInfo tex = currentTexture;
-                
-                if (tex != null && tex.texture() != null) {
-                    tex.texture().close();
-                    Minecraft.getInstance().getTextureManager().release(tex.location());
+                // Texture cleanup
+                if (currentTexture != null && currentTexture.texture() != null) {
+                    currentTexture.texture().close();
+                    Minecraft.getInstance().getTextureManager().release(currentTexture.location());
                     currentTexture = null;
                 }
-                
                 failed = "";
-                
+            
             } else {
-                fadeState = FadeState.FADE_FROM_BLACK;
-                fadeProgress = 0;
+                end();
             }
-            
-        } else if (stage == totalStage -1) {
-            end();
-            
         } else {
             fadeState = FadeState.NONE;
         }
@@ -260,7 +257,7 @@ public class SlideshowScreen extends Screen {
         float baseScale = Math.max((float) this.width / imgW, (float) this.height / imgH);
         
         double totalTextTime = (double) currentStage.subtext().length() / currentStage.typingSpeed();
-        double animationDuration = totalTextTime + currentStage.secondsToSwitch();
+        double animationDuration = totalTextTime + currentStage.secondsToSwitch() + fadeSpeed;
         
         float progress = (float) (timePassed / animationDuration);
         progress = Math.min(progress, 1.0f);
@@ -366,11 +363,22 @@ public class SlideshowScreen extends Screen {
     @Override
     public void onClose() {
         super.onClose();
+        cleanup();
+    }
+    
+    @Override
+    public void removed() {
+        super.removed();
+        cleanup();
+    }
+    
+    protected void cleanup() {
         if (currentTexture != null) {
             currentTexture.texture().close();
             Minecraft.getInstance().getTextureManager().release(currentTexture.location());
             currentTexture = null;
         }
+        
         thread.addTask(() -> {
             AudioPlayer player = thread.getPlayer();
             player.startFadeOut(1.5f);

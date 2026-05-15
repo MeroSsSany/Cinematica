@@ -223,6 +223,17 @@ public final class Cinematica {
         return slideshows.keySet();
     }
     
+    public static String formalize(String name) {
+        StringBuilder builder = new StringBuilder();
+        
+        for (char c : name.toCharArray()) {
+            if (Character.isAlphabetic(c)) builder.append(Character.toLowerCase(c));
+            if (c == ' ') builder.append("_");
+        }
+        
+        return builder.toString();
+    }
+    
     public record LoadDetail(Path path, String msg, boolean failure) {
     }
 }
