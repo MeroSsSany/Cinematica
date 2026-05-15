@@ -2,6 +2,8 @@ package dev.merosssany.cinematica.core.data.slideshow;
 
 import org.joml.Vector2f;
 
+import java.util.List;
+
 public record SlideshowSlide(
         String title,
         String subtext,
@@ -14,5 +16,6 @@ public record SlideshowSlide(
         String titleColor,
         String textColor,
         String backgroundColor,
-        int secondsToSwitch
+        int secondsToSwitch,
+        List<String> commands
 ) {}

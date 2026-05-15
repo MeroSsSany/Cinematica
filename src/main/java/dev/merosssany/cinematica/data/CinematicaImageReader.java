@@ -1,4 +1,4 @@
-package dev.merosssany.cinematica.renderer;
+package dev.merosssany.cinematica.data;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import dev.merosssany.cinematica.core.Cinematica;

@@ -18,6 +18,7 @@ public record SlideshowSettings(
         boolean skippable,
         boolean alternateTextPosition,
         boolean largerTextBackground,
+        boolean stopAudio,
         float fadeSpeed,
         String name,
         Vector2i offset,

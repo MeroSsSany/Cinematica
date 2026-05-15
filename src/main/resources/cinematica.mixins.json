@@ -5,9 +5,9 @@
   "compatibilityLevel": "JAVA_8",
   "refmap": "cinematica.refmap.json",
   "mixins": [
-    "CombatTrackerAccessor"
   ],
   "client": [
+    "CameraAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

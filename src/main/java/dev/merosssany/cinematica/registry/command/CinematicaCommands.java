@@ -4,18 +4,23 @@ import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import dev.merosssany.cinematica.ObjectKey;
 import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
 import dev.merosssany.cinematica.networking.NetworkManager;
 import dev.merosssany.cinematica.networking.packet.OpenSlideshowPacket;
 import dev.merosssany.cinematica.networking.packet.SelectedScenePacket;
+import dev.merosssany.cinematica.registry.CinematicaRegistries;
 import dev.merosssany.cinematica.registry.capablities.CinematicCapProvider;
 import dev.merosssany.cinematica.registry.capablities.ICinematicCap;
+import dev.merosssany.cinematica.registry.command.cinematica.CameraPositionCommand;
+import dev.merosssany.cinematica.registry.command.cinematica.MinecraftCommandHandler;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraftforge.common.util.LazyOptional;
@@ -24,7 +29,12 @@ import java.io.IOException;
 import java.util.Collection;
 
 public class CinematicaCommands {
-    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+    private static ObjectKey key;
+    
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher, ObjectKey key) {
+        registerCinematicaCommands();
+        CinematicaCommands.key = key;
+        
         dispatcher.register(
                 Commands.literal("cinematica")
                         .then(
@@ -62,8 +72,37 @@ public class CinematicaCommands {
                                                                 .executes(CinematicaCommands::getDeathScreen)
                                                 )
                                         )
+                        ).then(
+                                Commands.literal("refresh")
+                                        .requires(src -> src.hasPermission(2))
+                                        .executes(CinematicaCommands::refresh)
                         )
         );
+    }
+    
+    private static int refresh(CommandContext<CommandSourceStack> context) {
+        try {
+            context.getSource().sendSuccess(() -> Component.literal("Reloading..."), false);
+            Cinematica.LoadDetail[] details = Cinematica.reloadAll(key);
+            
+            for (Cinematica.LoadDetail detail : details) {
+                    MutableComponent literal = Component.literal(detail.msg());
+                if (detail.failure()) {
+                    context.getSource().sendFailure(literal);
+                } else context.getSource().sendSuccess(() -> literal, false);
+            }
+            
+        } catch (IOException e) {
+            context.getSource().sendFailure(Component.literal("Failed to reload: "+e.getMessage()));
+            Cinematica.getLogger().error(e.getMessage(), e);
+        }
+        
+        return Command.SINGLE_SUCCESS;
+    }
+    
+    private static void registerCinematicaCommands() {
+        CinematicaRegistries.COMMAND_REGISTRY.register("camera", new CameraPositionCommand());
+        CinematicaRegistries.COMMAND_REGISTRY.register("mc", new MinecraftCommandHandler());
     }
     
     private static int getSlideshow(CommandContext<CommandSourceStack> context) {

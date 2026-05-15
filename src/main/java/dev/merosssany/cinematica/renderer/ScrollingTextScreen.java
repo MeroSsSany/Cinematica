@@ -5,6 +5,7 @@ import dev.merosssany.cinematica.core.audio.AudioPlayer;
 import dev.merosssany.cinematica.core.audio.AudioThread;
 import dev.merosssany.cinematica.core.data.rendering.TextureInfo;
 import dev.merosssany.cinematica.core.data.scrollingtext.CreditsSettings;
+import dev.merosssany.cinematica.data.CinematicaImageReader;
 import dev.merosssany.cinematica.data.ResourceLocationReader;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;

@@ -1,4 +1,4 @@
-package dev.merosssany.cinematica.renderer;
+package dev.merosssany.cinematica.renderer.slideshow;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import dev.merosssany.cinematica.core.Cinematica;
@@ -6,6 +6,9 @@ import dev.merosssany.cinematica.core.data.RGBA;
 import dev.merosssany.cinematica.core.data.death.DeathScreenContext;
 import dev.merosssany.cinematica.core.data.rendering.TextureInfo;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSlide;
+import dev.merosssany.cinematica.renderer.FadeState;
+import dev.merosssany.cinematica.renderer.OverflowData;
+import dev.merosssany.cinematica.renderer.Renderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;

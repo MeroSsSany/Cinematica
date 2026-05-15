@@ -1,18 +1,25 @@
-package dev.merosssany.cinematica.renderer;
+package dev.merosssany.cinematica.renderer.slideshow;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.core.audio.AudioPlayer;
 import dev.merosssany.cinematica.core.audio.AudioThread;
+import dev.merosssany.cinematica.core.data.CinematicaCommandContext;
+import dev.merosssany.cinematica.core.data.CinematicaCommandParser;
+import dev.merosssany.cinematica.core.data.ClientCameraMemory;
 import dev.merosssany.cinematica.core.data.rendering.TextureInfo;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSlide;
+import dev.merosssany.cinematica.renderer.FadeState;
+import dev.merosssany.cinematica.renderer.Renderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundSource;
 
 import java.io.*;
 import java.nio.file.Path;
@@ -30,6 +37,7 @@ public class SlideshowScreen extends Screen {
     protected final float fadeSpeed;
     protected final boolean skippable;
     protected final Path root;
+    protected boolean shouldRender;
     
     private int stage;
     private double lastTime;
@@ -70,13 +78,25 @@ public class SlideshowScreen extends Screen {
         super.init();
         if (!init) {
             thread.start();
+            reset();
             init = true;
         }
     }
     
+    public void stopAllAudio() {
+        SoundManager soundManager = Minecraft.getInstance().getSoundManager();
+        soundManager.stop();
+    }
+    
     @Override
     public void render(GuiGraphics graphics, int mx, int my, float pTick) {
-        graphics.fill(0, 0, this.width, this.height, 0xFF000000);
+        shouldRender = !ClientCameraMemory.render;
+        if (settings.stopAudio()) stopAllAudio();
+        else {
+            SoundManager soundManager = Minecraft.getInstance().getSoundManager();
+            soundManager.stop(null, SoundSource.MUSIC);
+        }
+        if (shouldRender) graphics.fill(0, 0, this.width, this.height, 0xFF000000);
         
         double current = glfwGetTime();
         double delta = current - lastTime;
@@ -152,23 +172,42 @@ public class SlideshowScreen extends Screen {
         if (fadeState == FadeState.FADE_TO_BLACK) {
             if (stage < totalStage - 1) {
                 stage++;
-                timePassed = 0;
-                fadeState = FadeState.FADE_FROM_BLACK;
-                fadeProgress = 0;
+                reset();
                 
-                // Texture cleanup
-                if (currentTexture != null && currentTexture.texture() != null) {
-                    currentTexture.texture().close();
-                    Minecraft.getInstance().getTextureManager().release(currentTexture.location());
-                    currentTexture = null;
-                }
-                failed = "";
-            
             } else {
                 end();
             }
         } else {
             fadeState = FadeState.NONE;
+        }
+    }
+    
+    private void reset() {
+        timePassed = 0;
+        fadeState = FadeState.FADE_FROM_BLACK;
+        fadeProgress = 0;
+        
+        // Texture cleanup
+        if (currentTexture != null && currentTexture.texture() != null) {
+            currentTexture.texture().close();
+            Minecraft.getInstance().getTextureManager().release(currentTexture.location());
+            currentTexture = null;
+        }
+        
+        failed = "";
+        ClientCameraMemory.render = false;
+        
+        List<String> commands = settings.slides()[stage].commands();
+        
+        if (commands != null) {
+            for (String cmd : commands) {
+                String[] parts = cmd.split(" ");
+                String[] params = new String[parts.length-1];
+                System.arraycopy(parts, 1, params, 0, params.length);
+                CinematicaCommandContext context = new CinematicaCommandContext(params);
+                CinematicaCommandParser.get().run(parts[0], context);
+                Cinematica.getLogger().warn(context.failure());
+            }
         }
     }
     
@@ -262,6 +301,8 @@ public class SlideshowScreen extends Screen {
     }
     
     protected void renderTexture(GuiGraphics graphics, SlideshowSlide currentStage) {
+        if (!shouldRender) return;
+        
         float imgW = currentTexture.width();
         float imgH = currentTexture.height();
         

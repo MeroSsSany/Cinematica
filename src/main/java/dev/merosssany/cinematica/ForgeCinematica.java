@@ -11,7 +11,7 @@ import dev.merosssany.cinematica.networking.NetworkManager;
 import dev.merosssany.cinematica.registry.capablities.ICinematicCap;
 import dev.merosssany.cinematica.registry.command.CinematicaCommands;
 import dev.merosssany.cinematica.registry.command.ModArgumentTypes;
-import dev.merosssany.cinematica.renderer.SlideshowScreen;
+import dev.merosssany.cinematica.renderer.slideshow.SlideshowScreen;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
@@ -63,7 +63,7 @@ public class ForgeCinematica {
     
     @SubscribeEvent
     public void onCommandRegister(RegisterCommandsEvent e) {
-        CinematicaCommands.register(e.getDispatcher());
+        CinematicaCommands.register(e.getDispatcher(), key);
     }
     
     @SubscribeEvent
