@@ -26,7 +26,6 @@ public record SlideshowSettings(
 ) {
     public static SlideshowSettings fromJson(JsonObject json) {
         Gson gson = getGson();
-        
         return gson.fromJson(json, SlideshowSettings.class);
     }
     

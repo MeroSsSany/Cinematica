@@ -1,6 +1,7 @@
 package dev.merosssany.cinematica.renderer;
 
 import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
 import dev.merosssany.cinematica.core.data.RGBA;
 import net.minecraft.client.gui.Font;
@@ -93,5 +94,38 @@ public class Renderer {
         
         RenderSystem.depthMask(true);
         RenderSystem.enableDepthTest();
+    }
+    
+    public static void blurImage(int radius, NativeImage image) {
+        if (radius <= 0) return;
+        
+        int width = image.getWidth();
+        int height = image.getHeight();
+        
+        // Allocate the helper image buffer once
+        NativeImage temp = new NativeImage(image.format(), width, height, false);
+        
+        for (int i = 0; i < radius; i++) {
+            for (int y = 1; y < height - 1; y++) {
+                for (int x = 1; x < width - 1; x++) {
+                    int c1 = image.getPixelRGBA(x, y);
+                    int c2 = image.getPixelRGBA(x - 1, y);
+                    int c3 = image.getPixelRGBA(x + 1, y);
+                    int c4 = image.getPixelRGBA(x, y - 1);
+                    int c5 = image.getPixelRGBA(x, y + 1);
+                    
+                    int a = ((c1 >> 24 & 0xFF) + (c2 >> 24 & 0xFF) + (c3 >> 24 & 0xFF) + (c4 >> 24 & 0xFF) + (c5 >> 24 & 0xFF)) / 5;
+                    int b = ((c1 >> 16 & 0xFF) + (c2 >> 16 & 0xFF) + (c3 >> 16 & 0xFF) + (c4 >> 16 & 0xFF) + (c5 >> 16 & 0xFF)) / 5;
+                    int g = ((c1 >> 8 & 0xFF) + (c2 >> 8 & 0xFF) + (c3 >> 8 & 0xFF) + (c4 >> 8 & 0xFF) + (c5 >> 8 & 0xFF)) / 5;
+                    int r = ((c1 & 0xFF) + (c2 & 0xFF) + (c3 & 0xFF) + (c4 & 0xFF) + (c5 & 0xFF)) / 5;
+                    
+                    temp.setPixelRGBA(x, y, (a << 24) | (b << 16) | (g << 8) | r);
+                }
+            }
+            
+            image.copyFrom(temp);
+        }
+        
+        temp.close();
     }
 }

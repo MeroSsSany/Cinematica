@@ -29,6 +29,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+import static dev.merosssany.cinematica.renderer.Renderer.blurImage;
 import static org.lwjgl.glfw.GLFW.glfwGetTime;
 
 public class CineDeathScreen extends SlideshowScreen {
@@ -81,57 +82,6 @@ public class CineDeathScreen extends SlideshowScreen {
         }
         
         if (timePassed < 0.2) Renderer.drawVignette(graphics, width, height, RGBA.fromRGBA(168, 20, 25, 1));
-    }
-    
-    @Override
-    protected TextureInfo loadTexture(InputStream stream, String locationName, int stage) throws IOException {
-        NativeImage image = NativeImage.read(stream);
-        
-        int radius = 3;
-        blurImage(radius, image);
-        
-        DynamicTexture tex = new DynamicTexture(image);
-        
-        float imgW = image.getWidth();
-        float imgH = image.getHeight();
-        
-        ResourceLocation location = ResourceLocation.fromNamespaceAndPath(Cinematica.MODID, locationName + "_" + stage);
-        
-        Minecraft.getInstance().getTextureManager().register(location, tex);
-        return new TextureInfo(imgW, imgH, tex, location);
-    }
-    
-    protected static void blurImage(int radius, NativeImage image) {
-        if (radius <= 0) return;
-        
-        int width = image.getWidth();
-        int height = image.getHeight();
-        
-        // Allocate the helper image buffer once
-        NativeImage temp = new NativeImage(image.format(), width, height, false);
-        
-        for (int i = 0; i < radius; i++) {
-            for (int y = 1; y < height - 1; y++) {
-                for (int x = 1; x < width - 1; x++) {
-                    int c1 = image.getPixelRGBA(x, y);
-                    int c2 = image.getPixelRGBA(x - 1, y);
-                    int c3 = image.getPixelRGBA(x + 1, y);
-                    int c4 = image.getPixelRGBA(x, y - 1);
-                    int c5 = image.getPixelRGBA(x, y + 1);
-                    
-                    int a = ((c1 >> 24 & 0xFF) + (c2 >> 24 & 0xFF) + (c3 >> 24 & 0xFF) + (c4 >> 24 & 0xFF) + (c5 >> 24 & 0xFF)) / 5;
-                    int b = ((c1 >> 16 & 0xFF) + (c2 >> 16 & 0xFF) + (c3 >> 16 & 0xFF) + (c4 >> 16 & 0xFF) + (c5 >> 16 & 0xFF)) / 5;
-                    int g = ((c1 >> 8 & 0xFF) + (c2 >> 8 & 0xFF) + (c3 >> 8 & 0xFF) + (c4 >> 8 & 0xFF) + (c5 >> 8 & 0xFF)) / 5;
-                    int r = ((c1 & 0xFF) + (c2 & 0xFF) + (c3 & 0xFF) + (c4 & 0xFF) + (c5 & 0xFF)) / 5;
-                    
-                    temp.setPixelRGBA(x, y, (a << 24) | (b << 16) | (g << 8) | r);
-                }
-            }
-            
-            image.copyFrom(temp);
-        }
-        
-        temp.close();
     }
     
     @Override

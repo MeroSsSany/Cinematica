@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static dev.merosssany.cinematica.core.Cinematica.*;
+import static dev.merosssany.cinematica.renderer.Renderer.blurImage;
 import static dev.merosssany.cinematica.renderer.Renderer.drawScaledString;
 import static org.lwjgl.glfw.GLFW.glfwGetTime;
 
@@ -287,14 +288,16 @@ public class SlideshowScreen extends Screen {
     
     protected TextureInfo loadTexture(InputStream stream, String locationName, int stage) throws IOException {
         NativeImage image = NativeImage.read(stream);
+        
+        int radius = settings.slides()[stage].radius();
+        blurImage(radius, image);
+        
         DynamicTexture tex = new DynamicTexture(image);
         
         float imgW = image.getWidth();
         float imgH = image.getHeight();
         
         ResourceLocation location = ResourceLocation.fromNamespaceAndPath(Cinematica.MODID, locationName + "_" + stage);
-        image.close();
-        
         
         Minecraft.getInstance().getTextureManager().register(location, tex);
         return new TextureInfo(imgW, imgH, tex, location);
@@ -373,6 +376,8 @@ public class SlideshowScreen extends Screen {
         graphics.blit(currentTexture.location(), 0, 0, 0, 0, (int)imgW, (int)imgH, (int)imgW, (int)imgH);
         
         graphics.pose().popPose();
+        
+        if (currentStage.tint() != null) graphics.fill(0, 0, width, height, currentStage.tint().toHexadecimalARGB());
     }
     
     public int getStage() {

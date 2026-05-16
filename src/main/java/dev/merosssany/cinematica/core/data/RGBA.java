@@ -27,8 +27,7 @@ public class RGBA extends RGB {
     protected float alpha = 0;
     
     public RGBA(int red, int green, int blue, float alpha) {
-        super(red, green, blue);
-        this.alpha = alpha;
+        this(red / 255f, green / 255f, blue / 255f, alpha);
     }
     
     public RGBA() {
@@ -156,5 +155,16 @@ public class RGBA extends RGB {
     
     public int getHexAlpha() {
         return (int) (a() * 255);
+    }
+    
+    public int toHexadecimalARGB() {
+        // Scale the normalized 0.0-1.0 floats back to 0-255 integers
+        int a = Math.round(clamp(0, 1, alpha) * 255f);
+        int r = Math.round(clamp(0, 1, red) * 255f);
+        int g = Math.round(clamp(0, 1, green) * 255f);
+        int b = Math.round(clamp(0, 1, blue) * 255f);
+        
+        // Format: 0xAARRGGBB
+        return (a << 24) | (r << 16) | (g << 8) | b;
     }
 }
