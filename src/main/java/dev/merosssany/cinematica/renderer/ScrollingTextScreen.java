@@ -232,7 +232,7 @@ public class ScrollingTextScreen extends Screen {
         DynamicTexture texture = this.texture.texture();
         if (texture != null) texture.close();
         audioThread.addTask(()-> {
-            audioThread.getPlayer().startFadeOut(0.5f);
+            audioThread.getPlayer().startFadeOut(fadeSpeed);
             audioThread.requestExitAfterPlayback();
         });
         killed = true;

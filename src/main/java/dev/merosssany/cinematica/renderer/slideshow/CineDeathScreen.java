@@ -86,11 +86,11 @@ public class CineDeathScreen extends SlideshowScreen {
     @Override
     protected TextureInfo loadTexture(InputStream stream, String locationName, int stage) throws IOException {
         NativeImage image = NativeImage.read(stream);
-        DynamicTexture tex = new DynamicTexture(image);
         
-        // Blur image
-        int radius = 3; // Increase for more blur
+        int radius = 3;
         blurImage(radius, image);
+        
+        DynamicTexture tex = new DynamicTexture(image);
         
         float imgW = image.getWidth();
         float imgH = image.getHeight();
@@ -102,17 +102,23 @@ public class CineDeathScreen extends SlideshowScreen {
     }
     
     protected static void blurImage(int radius, NativeImage image) {
+        if (radius <= 0) return;
+        
+        int width = image.getWidth();
+        int height = image.getHeight();
+        
+        // Allocate the helper image buffer once
+        NativeImage temp = new NativeImage(image.format(), width, height, false);
+        
         for (int i = 0; i < radius; i++) {
-            NativeImage temp = new NativeImage(image.format(), image.getWidth(), image.getHeight(), false);
-            for (int y = 1; y < image.getHeight() - 1; y++) {
-                for (int x = 1; x < image.getWidth() - 1; x++) {
+            for (int y = 1; y < height - 1; y++) {
+                for (int x = 1; x < width - 1; x++) {
                     int c1 = image.getPixelRGBA(x, y);
                     int c2 = image.getPixelRGBA(x - 1, y);
                     int c3 = image.getPixelRGBA(x + 1, y);
                     int c4 = image.getPixelRGBA(x, y - 1);
                     int c5 = image.getPixelRGBA(x, y + 1);
                     
-                    // Average the ABGR channels
                     int a = ((c1 >> 24 & 0xFF) + (c2 >> 24 & 0xFF) + (c3 >> 24 & 0xFF) + (c4 >> 24 & 0xFF) + (c5 >> 24 & 0xFF)) / 5;
                     int b = ((c1 >> 16 & 0xFF) + (c2 >> 16 & 0xFF) + (c3 >> 16 & 0xFF) + (c4 >> 16 & 0xFF) + (c5 >> 16 & 0xFF)) / 5;
                     int g = ((c1 >> 8 & 0xFF) + (c2 >> 8 & 0xFF) + (c3 >> 8 & 0xFF) + (c4 >> 8 & 0xFF) + (c5 >> 8 & 0xFF)) / 5;
@@ -123,8 +129,9 @@ public class CineDeathScreen extends SlideshowScreen {
             }
             
             image.copyFrom(temp);
-            temp.close();
         }
+        
+        temp.close();
     }
     
     @Override

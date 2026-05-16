@@ -63,22 +63,15 @@ public class Renderer {
     public static void drawVignette(GuiGraphics graphics, int width, int height, RGBA color) {
         RenderSystem.disableDepthTest();
         RenderSystem.depthMask(false);
-        
         RenderSystem.enableBlend();
         
-        RenderSystem.blendFuncSeparate(
-                GlStateManager.SourceFactor.ZERO,
-                GlStateManager.DestFactor.ONE_MINUS_SRC_COLOR,
-                GlStateManager.SourceFactor.ONE,
-                GlStateManager.DestFactor.ZERO
-        );
+        // This tells OpenGL to treat the white values (1.0) as full color/opacity
+        // and black values (0.0) as transparent/empty space.
+        RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_COLOR, GlStateManager.DestFactor.ONE_MINUS_SRC_COLOR);
         
-        graphics.setColor(
-                color.r(),
-                color.g(),
-                color.b(),
-                color.a()
-        );
+        RenderSystem.setShader(net.minecraft.client.renderer.GameRenderer::getPositionTexShader);
+        RenderSystem.setShaderColor(color.r(), color.g(), color.b(), color.a());
+        graphics.setColor(color.r(), color.g(), color.b(), color.a());
         
         graphics.pose().pushPose();
         graphics.pose().translate(0, 0, 450);
@@ -93,9 +86,10 @@ public class Renderer {
         
         graphics.pose().popPose();
         
-        graphics.setColor(1f, 1f, 1f, 1f);
-        
+        // Reset to vanilla standards immediately
         RenderSystem.defaultBlendFunc();
+        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+        graphics.setColor(1.0f, 1.0f, 1.0f, 1.0f);
         
         RenderSystem.depthMask(true);
         RenderSystem.enableDepthTest();
