@@ -130,7 +130,7 @@ public class DialogRenderer {
                         try (FileInputStream stream = new FileInputStream(textureFile)) {
                             NativeImage image = NativeImage.read(stream);
                             DynamicTexture dynamicTexture = new DynamicTexture(image);
-                            ResourceLocation location = ResourceLocation.fromNamespaceAndPath(Cinematica.MODID, "cinematica_dialog_" + settings.dialogName() + "_" + cache.currentDialog);
+                            ResourceLocation location = ResourceLocation.fromNamespaceAndPath(Cinematica.modId, "cinematica_dialog_" + settings.dialogName() + "_" + cache.currentDialog);
                             Minecraft.getInstance().getTextureManager().register(location, dynamicTexture);
                             
                             cache.tempTex = new TextureInfo(

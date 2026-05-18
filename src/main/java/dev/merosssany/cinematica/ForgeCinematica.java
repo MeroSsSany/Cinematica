@@ -7,6 +7,7 @@ import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.core.FileManager;
 import dev.merosssany.cinematica.core.audio.data.factory.DefaultFactories;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
+import dev.merosssany.cinematica.core.security.ObjectKey;
 import dev.merosssany.cinematica.networking.NetworkManager;
 import dev.merosssany.cinematica.registry.capablities.ICinematicCap;
 import dev.merosssany.cinematica.registry.command.CinematicaCommands;
@@ -27,7 +28,7 @@ import org.lwjgl.glfw.GLFW;
 
 import java.io.*;
 
-@Mod(Cinematica.MODID)
+@Mod(Cinematica.modId)
 public class ForgeCinematica {
     private static SlideshowSettings settings;
     private static final ObjectKey key = new ObjectKey();
@@ -90,7 +91,7 @@ public class ForgeCinematica {
         event.register(OPEN_INTRO);
     }
     
-    @Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.FORGE, modid = Cinematica.MODID)
+    @Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.FORGE, modid = Cinematica.modId)
     public static class c {
         @SubscribeEvent
         public static void onClientTick(TickEvent.ClientTickEvent event) {

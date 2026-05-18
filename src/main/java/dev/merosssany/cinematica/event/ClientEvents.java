@@ -4,7 +4,7 @@ import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.core.data.ClientCameraMemory;
 import dev.merosssany.cinematica.core.data.ClientDeathMemory;
 import dev.merosssany.cinematica.core.data.death.DeathScreenContext;
-import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
+import dev.merosssany.cinematica.core.data.death.DeathScreenSettings;
 import dev.merosssany.cinematica.mixin.CameraAccessor;
 import dev.merosssany.cinematica.renderer.slideshow.CineDeathScreen;
 import net.minecraft.client.Camera;
@@ -19,7 +19,7 @@ import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
-@Mod.EventBusSubscriber(modid = Cinematica.MODID, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = Cinematica.modId, value = Dist.CLIENT)
 public class ClientEvents {
     @SubscribeEvent(priority = EventPriority.LOWEST) // making sure Cinematica opens its scene the last
     public static void onScreenOpen(ScreenEvent.Opening event) {
@@ -27,7 +27,7 @@ public class ClientEvents {
             // Did the server tell us a specific cinematic to play?
             if (!ClientDeathMemory.pendingSceneId.isEmpty() && Cinematica.SlideshowExists(ClientDeathMemory.pendingSceneId)) {
                 
-                SlideshowSettings settings = Cinematica.getSlideshow(ClientDeathMemory.pendingSceneId);
+                DeathScreenSettings settings = Cinematica.deathScreenRegistry().get(ClientDeathMemory.pendingSceneId);
                 Entity attacker = Minecraft.getInstance().level.getEntity(ClientDeathMemory.pendingAttackerId);
                 
                 // We pass the data to custom screen

@@ -19,7 +19,7 @@ public class NetworkManager {
     
     public static void register() {
         INSTANCE = NetworkRegistry.ChannelBuilder
-                .named(ResourceLocation.fromNamespaceAndPath(Cinematica.MODID, "messages"))
+                .named(ResourceLocation.fromNamespaceAndPath(Cinematica.modId, "messages"))
                 .networkProtocolVersion(() -> "1.0")
                 .clientAcceptedVersions(s -> true)
                 .serverAcceptedVersions(s -> true)

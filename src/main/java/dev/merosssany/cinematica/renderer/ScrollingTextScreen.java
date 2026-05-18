@@ -71,7 +71,7 @@ public class ScrollingTextScreen extends Screen {
         this.fadeSpeed = fadeSpeed;
         
         if (logo == null || logo.isEmpty()) {
-            texture = TextureInfo.fromResourceLocation(ResourceLocation.fromNamespaceAndPath(Cinematica.MODID, "textures/gui/backgrounds/main_bg.png"));
+            texture = TextureInfo.fromResourceLocation(ResourceLocation.fromNamespaceAndPath(Cinematica.modId, "textures/gui/backgrounds/main_bg.png"));
         } else {
             texture = CinematicaImageReader.read(logo, "cinematica_scrolling_text_logo");
         }

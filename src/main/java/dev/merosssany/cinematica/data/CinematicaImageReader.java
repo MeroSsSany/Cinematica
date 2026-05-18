@@ -19,7 +19,7 @@ public class CinematicaImageReader {
             float imgW = image.getWidth();
             float imgH = image.getHeight();
             
-            ResourceLocation location = ResourceLocation.fromNamespaceAndPath(Cinematica.MODID, locationName);
+            ResourceLocation location = ResourceLocation.fromNamespaceAndPath(Cinematica.modId, locationName);
             image.close();
             
             Minecraft.getInstance().getTextureManager().register(location, texture);

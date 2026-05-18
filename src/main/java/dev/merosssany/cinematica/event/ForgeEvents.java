@@ -3,10 +3,8 @@ package dev.merosssany.cinematica.event;
 import dev.merosssany.cinematica.networking.NetworkManager;
 import dev.merosssany.cinematica.networking.packet.SelectedScenePacket;
 import dev.merosssany.cinematica.networking.packet.SyncDeathContextPacket;
-import dev.merosssany.cinematica.registry.CinematicaRegistries;
 import dev.merosssany.cinematica.registry.capablities.CinematicCapProvider;
 import dev.merosssany.cinematica.registry.capablities.ICinematicCap;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -17,14 +15,14 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
-import static dev.merosssany.cinematica.core.Cinematica.MODID;
+import static dev.merosssany.cinematica.core.Cinematica.modId;
 
-@Mod.EventBusSubscriber(modid = MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@Mod.EventBusSubscriber(modid = modId, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class ForgeEvents {
     @SubscribeEvent
     public static void onAttachCapabilities(AttachCapabilitiesEvent<Entity> event) {
         if (event.getObject() instanceof LivingEntity) {
-            event.addCapability(ResourceLocation.fromNamespaceAndPath(MODID, "cinematic_id"), new CinematicCapProvider());
+            event.addCapability(ResourceLocation.fromNamespaceAndPath(modId, "cinematic_id"), new CinematicCapProvider());
         }
     }
     

@@ -4,18 +4,20 @@ import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import dev.merosssany.cinematica.ObjectKey;
+import dev.merosssany.cinematica.core.data.death.DeathScreenSettings;
+import dev.merosssany.cinematica.core.security.ObjectKey;
 import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
 import dev.merosssany.cinematica.networking.NetworkManager;
 import dev.merosssany.cinematica.networking.packet.OpenSlideshowPacket;
 import dev.merosssany.cinematica.networking.packet.SelectedScenePacket;
-import dev.merosssany.cinematica.registry.CinematicaRegistries;
+import dev.merosssany.cinematica.core.registry.CinematicaRegistries;
 import dev.merosssany.cinematica.registry.capablities.CinematicCapProvider;
 import dev.merosssany.cinematica.registry.capablities.ICinematicCap;
 import dev.merosssany.cinematica.registry.command.cinematica.CameraPositionCommand;
 import dev.merosssany.cinematica.registry.command.cinematica.MinecraftCommandHandler;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.gui.screens.DeathScreen;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -54,7 +56,7 @@ public class CinematicaCommands {
                                         .requires(src -> src.hasPermission(2))
                                         .then(
                                                 Commands.argument("entities", EntityArgument.entities()).then(
-                                                        Commands.argument("deathscreen", new SlideshowCommandType())
+                                                        Commands.argument("deathscreen", new DeathScreenCommandType())
                                                                 .executes(CinematicaCommands::attach)
                                                 )
                                         )
@@ -123,7 +125,7 @@ public class CinematicaCommands {
     
     private static int attach(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         Collection<? extends Entity> entities = EntityArgument.getEntities(context, "entities");
-        SlideshowSettings settings = context.getArgument("deathscreen", SlideshowSettings.class);
+        DeathScreenSettings settings = context.getArgument("deathscreen", DeathScreenSettings.class);
         int success = 0;
         
         try {

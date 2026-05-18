@@ -1,8 +1,9 @@
-package dev.merosssany.cinematica.registry;
+package dev.merosssany.cinematica.core.registry;
 
-import dev.merosssany.cinematica.ObjectKey;
+import dev.merosssany.cinematica.core.security.ObjectKey;
 
 import java.util.Map;
+import java.util.Set;
 
 public class CinematicaRegistry<KEY, VALUE> {
     protected final Map<KEY, VALUE> entries;
@@ -30,5 +31,18 @@ public class CinematicaRegistry<KEY, VALUE> {
     public void setFrozen(boolean frozen, ObjectKey key) {
         if (this.key != key) throw new SecurityException("Incorrect key");
         this.frozen = frozen;
+    }
+    
+    public void clear(ObjectKey key) {
+        if (this.key != key) throw new SecurityException("Incorrect key");
+        entries.clear();
+    }
+    
+    public boolean isRegistered(KEY key) {
+        return entries.containsKey(key);
+    }
+    
+    public Set<KEY> getRegistered() {
+        return entries.keySet();
     }
 }

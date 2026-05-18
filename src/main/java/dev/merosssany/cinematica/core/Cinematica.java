@@ -3,9 +3,13 @@ package dev.merosssany.cinematica.core;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.logging.LogUtils;
+import dev.merosssany.cinematica.core.data.death.DeathScreenSettings;
 import dev.merosssany.cinematica.core.data.scrollingtext.CreditsSettings;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
-import dev.merosssany.cinematica.ObjectKey;
+import dev.merosssany.cinematica.core.registry.settings.CreditScreenRegistry;
+import dev.merosssany.cinematica.core.registry.settings.DeathScreenRegistry;
+import dev.merosssany.cinematica.core.registry.settings.SlideshowRegistry;
+import dev.merosssany.cinematica.core.security.ObjectKey;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSlide;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
@@ -18,16 +22,19 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings.getGson;
+
 public final class Cinematica {
-    public static final String MODID = "cinematica";
+    public static final String modId = "cinematica";
     
-    private static final Map<String, SlideshowSettings> slideshows = new ConcurrentHashMap<>();
-    private static final Map<String, CreditsSettings> credits = new ConcurrentHashMap<>();
     private static final Map<SlideshowSettings, Path> slideshowRoots = new ConcurrentHashMap<>();
     private static final Logger logger = LogUtils.getLogger();
-    
     private static ObjectKey lock;
     private static boolean frozen;
+    
+    private static SlideshowRegistry slideshowRegistry;
+    private static DeathScreenRegistry deathScreenRegistry;
+    private static CreditScreenRegistry creditScreenRegistry;
     
     public static void init(ObjectKey lock) {
         if (lock == null) {
@@ -38,6 +45,9 @@ public final class Cinematica {
         }
         
         Cinematica.lock = lock;
+        slideshowRegistry = new SlideshowRegistry(lock);
+        deathScreenRegistry = new DeathScreenRegistry(lock);
+        creditScreenRegistry = new CreditScreenRegistry(lock);
     }
     
     public static InputStream getAsset(String path, Path root) throws IOException {
@@ -82,29 +92,13 @@ public final class Cinematica {
             }
         }
         
-        slideshows.put(settings.name(), settings);
+        slideshowRegistry.register(settings);
         slideshowRoots.put(settings, root);
         logger.info("Registered slideshow \"{}\" successfully", settings.name());
     }
     
-    public static void register(CreditsSettings settings) {
-        if (frozen) {
-            throw new IllegalStateException("Cinematica is frozen!");
-        }
-        credits.put(settings.name(), settings);
-        logger.info("Registered credits screen \"{}\" successfully", settings.name());
-    }
-    
     public static SlideshowSettings getSlideshow(String name) {
-        return slideshows.get(name);
-    }
-    
-    public static CreditsSettings getCredits(String name) {
-        return credits.get(name);
-    }
-    
-    public static void freeze(ObjectKey key) {
-        if (key == lock) frozen = true;
+        return slideshowRegistry.get(name);
     }
     
     public static void beginReload(ObjectKey key) {
@@ -114,28 +108,23 @@ public final class Cinematica {
     }
     
     public static void clear(ObjectKey key) {
-        if (frozen) {
-            throw new IllegalStateException("Cannot clear while frozen");
-        }
-        if (key == lock) {
-            slideshows.clear();
-            credits.clear();
-        }
+        slideshowRegistry.clear(key);
+        creditScreenRegistry.clear(key);
+        deathScreenRegistry.clear(key);
+    }
+    
+    public static void freeze(ObjectKey key, boolean frozen) {
+        slideshowRegistry.setFrozen(frozen, key);
+        creditScreenRegistry.setFrozen(frozen, key);
+        deathScreenRegistry.setFrozen(frozen, key);
     }
     
     public static boolean SlideshowExists(String name) {
-        return slideshows.containsKey(name);
-    }
-    
-    public static boolean CreditsExists(String name) {
-        return credits.containsKey(name);
+        return slideshowRegistry.isRegistered(name);
     }
     
     public static LoadDetail[] reloadAll(ObjectKey key) throws IOException {
-        if (lock != key) {
-            throw new SecurityException("Invalid ObjectKey");
-        }
-        clear(key);
+        beginReload(key);
         
         Path cinematica = FileManager.getCinematicaFolder();
         
@@ -188,8 +177,37 @@ public final class Cinematica {
         
         loadSlideshows(root, folders);
         loadCreditScreens(root, folders);
+        loadDeathScreens(root, folders);
         
         return root.toFile().getName();
+    }
+    
+    private static void loadDeathScreens(Path root, JsonObject folders) throws IOException {
+        if (folders.has("death_screen")) {
+            String deathScreen = folders.get("death_screen").getAsString();
+            File folder = root.resolve(deathScreen).toFile();
+            
+            if (folder.isDirectory()) {
+                File[] files = folder.listFiles();
+                if (files == null) return;
+                
+                for (File file : files) {
+                    JsonObject j;
+                    try (FileReader reader = new FileReader(file)) {
+                        if (!file.getName().endsWith(".json")) continue;
+                        j = JsonParser.parseReader(reader).getAsJsonObject();
+                    }
+                    
+                    if (j.has("name")) {
+                        String name = j.get("name").getAsString();
+                        
+                        if (slideshowRegistry.isRegistered(name)) {
+                            deathScreenRegistry.register(getGson().fromJson(j, DeathScreenSettings.class));
+                        }
+                    }
+                }
+            }
+        }
     }
     
     private static void loadCreditScreens(Path root, JsonObject folders) throws InvalidJsonException, IOException {
@@ -210,8 +228,8 @@ public final class Cinematica {
                 }
                 
                 if (CreditsSettings.isValid(j)) {
-                    register(CreditsSettings.fromJson(j));
-                }
+                    creditScreenRegistry.register(CreditsSettings.fromJson(j));
+                } else logger.warn("Invalid credit screen: {}", file.getName());
             }
         }
     }
@@ -247,7 +265,7 @@ public final class Cinematica {
     }
     
     public static Set<String> getSlideshows() {
-        return slideshows.keySet();
+        return slideshowRegistry.getRegistered();
     }
     
     public static String formalize(String name) {
@@ -256,6 +274,14 @@ public final class Cinematica {
     
     public static Path getRoot(SlideshowSettings settings) {
         return slideshowRoots.get(settings);
+    }
+    
+    public static DeathScreenRegistry deathScreenRegistry() {
+        return deathScreenRegistry;
+    }
+    
+    public static CreditScreenRegistry creditScreenRegistry() {
+        return creditScreenRegistry;
     }
     
     public record LoadDetail(Path path, String msg, boolean failure) {

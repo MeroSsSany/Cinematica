@@ -1,5 +1,6 @@
 package dev.merosssany.cinematica.renderer.slideshow;
 
+import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.core.data.RGBA;
 import dev.merosssany.cinematica.core.data.death.DeathScreenContext;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSlide;
@@ -45,7 +46,7 @@ public class CineDeathScreen extends SlideshowScreen {
     private double delta;
     
     public CineDeathScreen(DeathScreenContext context) {
-        super(context.settings());
+        super(Cinematica.getSlideshow(context.settings().name()));
         this.context = context;
         
         setFadeState(FadeState.FADE_FROM_BLACK);
@@ -87,6 +88,12 @@ public class CineDeathScreen extends SlideshowScreen {
     
     @Override
     protected void renderText(GuiGraphics graphics, String subtext, String title, SlideshowSlide currentStage) {
+        if (context.settings().useDefaultSlideshow() && !isFailed()) {
+            
+            super.renderText(graphics, contextualize(subtext), title, currentStage);
+            return;
+        }
+        
         OverflowData overflow = Renderer.layoutText(this.font, getStrings(subtext), this.width);
         
         int pY = (this.height / 2) - (overflow.height() / 2);
@@ -141,41 +148,44 @@ public class CineDeathScreen extends SlideshowScreen {
     private @NotNull List<String> getStrings(String subtext) {
         if (getStage() != prevStage) {
             prevStage = getStage();
-            LocalPlayer player = getMinecraft().player;
-            
-            // Safety checks for attacker data
-            String attackerName = "The World";
-            String attackerHealth = "0";
-            if (context.entity() != null) {
-                attackerName = context.entity().getDisplayName().getString();
-                if (context.entity() instanceof LivingEntity living) {
-                    attackerHealth = String.format("%.1f", living.getHealth());
-                }
-            }
-            
-            ResourceLocation dimLocation = player.level().dimension().location();
-            String dimKey = "dimension." + dimLocation.getNamespace() + "." + dimLocation.getPath();
-            String dimensionName = Component.translatable(dimKey).getString();
-            
-            if (dimensionName.equals(dimKey)) {
-                dimensionName = StringUtils.capitalize(dimLocation.getPath());
-            }
-            
-            cache = subtext
-                    .replace("$player", player.getDisplayName().getString())
-                    .replace("$attacker_health", attackerHealth)
-                    .replace("$attacker", attackerName)
-                    .replace("$fps", String.valueOf(getMinecraft().getFps()))
-                    .replace("$x", String.format("%.1f", player.getX()))
-                    .replace("$y", String.format("%.1f", player.getY()))
-                    .replace("$z", String.format("%.1f", player.getZ()))
-                    .replace("$health", String.format("%.1f", player.getHealth()))
-                    .replace("$death_message", context.deathMessage())
-                    .replace("$dimension", dimensionName)
-            ;
+            cache = contextualize(subtext);
         }
         
         return List.of(cache.split("\n"));
+    }
+    
+    private String contextualize(String subtext) {
+        // Safety checks for attacker data
+        LocalPlayer player = getMinecraft().player;
+        
+        String attackerName = "The World";
+        String attackerHealth = "0";
+        if (context.entity() != null) {
+            attackerName = context.entity().getDisplayName().getString();
+            if (context.entity() instanceof LivingEntity living) {
+                attackerHealth = String.format("%.1f", living.getHealth());
+            }
+        }
+        
+        ResourceLocation dimLocation = player.level().dimension().location();
+        String dimKey = "dimension." + dimLocation.getNamespace() + "." + dimLocation.getPath();
+        String dimensionName = Component.translatable(dimKey).getString();
+        
+        if (dimensionName.equals(dimKey)) {
+            dimensionName = StringUtils.capitalize(dimLocation.getPath());
+        }
+        
+        return subtext
+                .replace("$player", player.getDisplayName().getString())
+                .replace("$attacker_health", attackerHealth)
+                .replace("$attacker", attackerName)
+                .replace("$fps", String.valueOf(getMinecraft().getFps()))
+                .replace("$x", String.format("%.1f", player.getX()))
+                .replace("$y", String.format("%.1f", player.getY()))
+                .replace("$z", String.format("%.1f", player.getZ()))
+                .replace("$health", String.format("%.1f", player.getHealth()))
+                .replace("$death_message", context.deathMessage())
+                .replace("$dimension", dimensionName);
     }
     
     @Override

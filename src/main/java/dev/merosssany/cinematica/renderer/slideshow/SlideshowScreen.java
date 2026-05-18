@@ -308,6 +308,10 @@ public class SlideshowScreen extends Screen {
         }
     }
     
+    protected boolean isFailed() {
+        return !failed.isEmpty();
+    }
+    
     protected @NotNull FormattedCharSequence getFormattedCharSequence(OverflowData overflow, int i, int total, int speed) {
         // If the user skipped the text, bypass calculations and draw the whole line instantly
         if (textSkipped.get()) {
@@ -369,7 +373,7 @@ public class SlideshowScreen extends Screen {
         float imgW = image.getWidth();
         float imgH = image.getHeight();
         
-        ResourceLocation location = ResourceLocation.fromNamespaceAndPath(Cinematica.MODID, locationName + "_" + stage);
+        ResourceLocation location = ResourceLocation.fromNamespaceAndPath(Cinematica.modId, locationName + "_" + stage);
         
         Minecraft.getInstance().getTextureManager().register(location, tex);
         return new TextureInfo(imgW, imgH, tex, location);

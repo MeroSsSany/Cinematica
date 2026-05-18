@@ -1,8 +1,8 @@
 package dev.merosssany.cinematica.core.data;
 
 import dev.merosssany.cinematica.core.data.handler.CinematicaCommandHandler;
-import dev.merosssany.cinematica.registry.CinematicaCommandRegistry;
-import dev.merosssany.cinematica.registry.CinematicaRegistries;
+import dev.merosssany.cinematica.core.registry.CinematicaCommandRegistry;
+import dev.merosssany.cinematica.core.registry.CinematicaRegistries;
 
 public class CinematicaCommandParser {
     private static final CinematicaCommandParser instance = new CinematicaCommandParser(CinematicaRegistries.COMMAND_REGISTRY);
