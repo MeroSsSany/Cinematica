@@ -1,21 +1,17 @@
 package dev.merosssany.cinematica.renderer.slideshow;
 
-import com.mojang.blaze3d.platform.NativeImage;
 import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.core.data.RGBA;
 import dev.merosssany.cinematica.core.data.death.DeathScreenContext;
-import dev.merosssany.cinematica.core.data.rendering.TextureInfo;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSlide;
 import dev.merosssany.cinematica.renderer.FadeState;
 import dev.merosssany.cinematica.renderer.OverflowData;
 import dev.merosssany.cinematica.renderer.Renderer;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.screens.*;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -24,25 +20,32 @@ import net.minecraft.world.entity.LivingEntity;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import static dev.merosssany.cinematica.renderer.Renderer.blurImage;
 import static org.lwjgl.glfw.GLFW.glfwGetTime;
 
 public class CineDeathScreen extends SlideshowScreen {
+    private static final RGBA VIGNETTE_INITIAL_COLOR = RGBA.fromRGBA(168, 20, 25, 1);
+    private final List<Button> exitButtons = new ArrayList<>();
+    private final AtomicBoolean textSkipped = new AtomicBoolean();
+    
     private double lastFrame;
     private double timePassed;
-    private final List<Button> exitButtons = new ArrayList<>();
+    private double driftX = 0;
+    private double driftY = 0;
+    private double targetDriftX = 0;
+    private double targetDriftY = 0;
+    private double driftTimer = 0;
     private boolean started;
+    private boolean ended;
     private int prevStage = -1;
     private String cache;
-    private boolean textSkipped;
-    private boolean ended;
     
     protected final DeathScreenContext context;
+    private double delta;
     
     public CineDeathScreen(DeathScreenContext context) {
         super(context.settings());
@@ -55,7 +58,8 @@ public class CineDeathScreen extends SlideshowScreen {
     @Override
     public void render(GuiGraphics graphics, int mx, int my, float pTick) {
         double current = glfwGetTime();
-        timePassed += current - lastFrame;
+        delta = current - lastFrame;
+        timePassed += delta;
         lastFrame = current;
         
         // Initial Delay logic
@@ -81,7 +85,7 @@ public class CineDeathScreen extends SlideshowScreen {
             }
         }
         
-        if (timePassed < 0.2) Renderer.drawVignette(graphics, width, height, RGBA.fromRGBA(168, 20, 25, 1));
+        if (timePassed < 0.2) Renderer.drawVignette(graphics, width, height, VIGNETTE_INITIAL_COLOR);
     }
     
     @Override
@@ -92,11 +96,49 @@ public class CineDeathScreen extends SlideshowScreen {
         int pX = this.width / 2;
         int speed = currentStage.typingSpeed();
         
-        for (int i = 0; i < overflow.lines().size(); i++) {
-            FormattedCharSequence line = getFormattedCharSequence(overflow, i, overflow.lines().size(), speed);
+        driftTimer += delta;
+        int timeToSwitch = 3;
+        
+        // Time to pick a new slow, organic target position
+        if (driftTimer >= timeToSwitch) {
+            driftTimer = 0;
             
-            graphics.drawCenteredString(font, line, pX, pY + (i * (font.lineHeight + 1)), toHex(currentStage.textColor()));
+            // Generate a random angle and small drift radius (e.g., up to 6 pixels max)
+            float angle = ThreadLocalRandom.current().nextFloat(0, (float) (Math.PI * 2));
+            float maxRadius = 3.0f;
+            float length = ThreadLocalRandom.current().nextFloat(2.0f, maxRadius);
+            
+            targetDriftX = Math.sin(angle) * length;
+            targetDriftY = Math.cos(angle) * length;
         }
+        
+        // Smoothly interpolate the drift values.
+        // 1.5f is the drift speed factor. Adjust higher for snappier, lower for lazier movement.
+        float driftSpeed = 0.5f;
+        
+        if (settings.alternateTextPosition()) {
+            driftX = lerp(driftX, targetDriftX, driftSpeed * delta);
+            driftY = lerp(driftY, targetDriftY, driftSpeed * delta);
+        } else {
+            driftX = 0;
+            driftY = 0;
+        }
+        graphics.pose().pushPose();
+        
+        graphics.pose().translate(driftX, driftY, 0d);
+        
+        for (int i = 0; i < overflow.lines().size(); i++) {
+            int nativeY = pY + (i * (font.lineHeight + 1));
+            FormattedCharSequence line = getFormattedCharSequence(overflow, i, overflow.lines().size(), speed);
+            graphics.drawCenteredString(font, line, pX, nativeY, toHex(currentStage.textColor()));
+        }
+        
+        graphics.pose().popPose();
+    }
+    
+    private static double lerp(double start, double end, double pct) {
+        if (pct > 1.0) pct = 1.0;
+        return start + (end - start) * pct;
     }
     
     private @NotNull List<String> getStrings(String subtext) {
@@ -135,10 +177,19 @@ public class CineDeathScreen extends SlideshowScreen {
                     .replace("$dimension", dimensionName)
             ;
         }
+        
         return List.of(cache.split("\n"));
     }
     
     private @NotNull FormattedCharSequence getFormattedCharSequence(OverflowData overflow, int i, int total, int speed) {
+        // If the user skipped the text, bypass calculations and draw the whole line instantly
+        if (textSkipped.get()) {
+            if (total - 1 == i) {
+                setTyping(false);
+            }
+            return (visitor) -> overflow.lines().get(i).accept(visitor);
+        }
+        
         // Calculate how many characters were in previous lines to create a delay
         int previousChars = 0;
         for (int j = 0; j < i; j++) {
@@ -148,11 +199,14 @@ public class CineDeathScreen extends SlideshowScreen {
         int totalCharsToShow = (int) (getTimePassed() * speed);
         int charsForThisLine = Math.max(0, totalCharsToShow - previousChars);
         int maxChars = overflow.lengths()[i];
-        
         int finalCharsToShow = Math.min(maxChars, charsForThisLine);
-        if (total - 1 == i) {
-            setTyping(finalCharsToShow != maxChars);
-            textSkipped = isTyping();
+        
+        // If ANY line is not at max characters yet, we are still typing
+        if (finalCharsToShow < maxChars) {
+            setTyping(true);
+        } else if (total - 1 == i) {
+            setTyping(false);
+            textSkipped.set(true);
         }
         
         return (visitor) -> {
@@ -169,6 +223,9 @@ public class CineDeathScreen extends SlideshowScreen {
     
     @Override
     protected void init() {
+        int pY = -1;
+        int pX = this.width / 2;
+        
         super.init();
         this.exitButtons.clear();
         
@@ -246,13 +303,29 @@ public class CineDeathScreen extends SlideshowScreen {
     
     @Override
     public boolean keyPressed(int keyCode, int pScanCode, int pModifiers) {
-        // Skipping is a little unreliable
+        // Check if the screen config even allows skipping right now
+        if (this.skippable) {
+            // If text is typing, skip the typewriter effect instantly
+            if (!textSkipped.get()) {
+                textSkipped.set(true);
+                setTyping(false);
+                return true;
+            }
+            
+            // Text is fully displayed, trigger a smooth slide transition
+            if (getFadeState() != FadeState.FADE_TO_BLACK) {
+                setFadeState(FadeState.FADE_TO_BLACK);
+                setFadeProgress(0);
+            }
+            return true;
+        }
+        
         return super.keyPressed(keyCode, pScanCode, pModifiers);
     }
     
     @Override
     protected void advance() {
         super.advance();
-        textSkipped = false;
+        textSkipped.set(false);
     }
 }

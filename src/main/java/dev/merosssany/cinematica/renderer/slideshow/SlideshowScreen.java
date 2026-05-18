@@ -183,6 +183,26 @@ public class SlideshowScreen extends Screen {
         }
     }
     
+    public void nextStage() {
+        // Only allow advancing if we aren't already mid-fade out
+        if (fadeState != FadeState.FADE_TO_BLACK) {
+            
+            // If the text is still actively typing, we can finish the text instantly first
+            if (typing) {
+                // Force timePassed forward so typewriter completes immediately
+                SlideshowSlide currentStage = settings.slides()[stage];
+                double totalTextTime = (double) currentStage.subtext().length() / currentStage.typingSpeed();
+                timePassed = totalTextTime + (1.0 / fadeSpeed);
+                typing = false;
+                return; // Stop here so the player can read it, pressing skip again will change slides
+            }
+            
+            // Kick off the smooth black transition sequence
+            fadeState = FadeState.FADE_TO_BLACK;
+            fadeProgress = 0.0f;
+        }
+    }
+    
     private void reset() {
         timePassed = 0;
         fadeState = FadeState.FADE_FROM_BLACK;
@@ -220,6 +240,10 @@ public class SlideshowScreen extends Screen {
                 .collect(Collectors.toList());
         
         graphics.renderComponentTooltip(font, tooltipLines, mx, my);
+    }
+    
+    public void setFadeProgress(float fadeProgress) {
+        this.fadeProgress = fadeProgress;
     }
     
     protected void end() {
@@ -289,7 +313,7 @@ public class SlideshowScreen extends Screen {
     protected TextureInfo loadTexture(InputStream stream, String locationName, int stage) throws IOException {
         NativeImage image = NativeImage.read(stream);
         
-        int radius = settings.slides()[stage].radius();
+        int radius = settings.slides()[stage].blurRadius();
         blurImage(radius, image);
         
         DynamicTexture tex = new DynamicTexture(image);

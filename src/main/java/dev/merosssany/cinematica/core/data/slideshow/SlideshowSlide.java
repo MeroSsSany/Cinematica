@@ -14,7 +14,7 @@ public record SlideshowSlide(
         String backgroundColor,
         int typingSpeed,
         int secondsToSwitch,
-        int radius,
+        int blurRadius,
         RGBA tint,
         Vector2f anchor,
         KenBurnsOptions kenBurns,
