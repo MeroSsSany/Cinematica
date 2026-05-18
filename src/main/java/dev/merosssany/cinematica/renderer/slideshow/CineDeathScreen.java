@@ -1,6 +1,5 @@
 package dev.merosssany.cinematica.renderer.slideshow;
 
-import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.core.data.RGBA;
 import dev.merosssany.cinematica.core.data.death.DeathScreenContext;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSlide;
@@ -23,14 +22,12 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.lwjgl.glfw.GLFW.glfwGetTime;
 
 public class CineDeathScreen extends SlideshowScreen {
     private static final RGBA VIGNETTE_INITIAL_COLOR = RGBA.fromRGBA(168, 20, 25, 1);
     private final List<Button> exitButtons = new ArrayList<>();
-    private final AtomicBoolean textSkipped = new AtomicBoolean();
     
     private double lastFrame;
     private double timePassed;
@@ -181,51 +178,8 @@ public class CineDeathScreen extends SlideshowScreen {
         return List.of(cache.split("\n"));
     }
     
-    private @NotNull FormattedCharSequence getFormattedCharSequence(OverflowData overflow, int i, int total, int speed) {
-        // If the user skipped the text, bypass calculations and draw the whole line instantly
-        if (textSkipped.get()) {
-            if (total - 1 == i) {
-                setTyping(false);
-            }
-            return (visitor) -> overflow.lines().get(i).accept(visitor);
-        }
-        
-        // Calculate how many characters were in previous lines to create a delay
-        int previousChars = 0;
-        for (int j = 0; j < i; j++) {
-            previousChars += overflow.lengths()[j];
-        }
-        
-        int totalCharsToShow = (int) (getTimePassed() * speed);
-        int charsForThisLine = Math.max(0, totalCharsToShow - previousChars);
-        int maxChars = overflow.lengths()[i];
-        int finalCharsToShow = Math.min(maxChars, charsForThisLine);
-        
-        // If ANY line is not at max characters yet, we are still typing
-        if (finalCharsToShow < maxChars) {
-            setTyping(true);
-        } else if (total - 1 == i) {
-            setTyping(false);
-            textSkipped.set(true);
-        }
-        
-        return (visitor) -> {
-            int[] count = {0};
-            return overflow.lines().get(i).accept((index, style, codePoint) -> {
-                if (count[0] < finalCharsToShow) {
-                    count[0]++;
-                    return visitor.accept(index, style, codePoint);
-                }
-                return false;
-            });
-        };
-    }
-    
     @Override
     protected void init() {
-        int pY = -1;
-        int pX = this.width / 2;
-        
         super.init();
         this.exitButtons.clear();
         
@@ -259,7 +213,6 @@ public class CineDeathScreen extends SlideshowScreen {
     
     @Override
     protected void end() {
-        Cinematica.getLogger().info("ended");
         ended = true;
         setButtonsVisible(true);
         cleanup();
@@ -299,28 +252,6 @@ public class CineDeathScreen extends SlideshowScreen {
     @Override
     protected void renderFailed(GuiGraphics graphics, int mx, int my, String failed) {
         // We don't want to render "⚠ Asset Error" if the player wants just text
-    }
-    
-    @Override
-    public boolean keyPressed(int keyCode, int pScanCode, int pModifiers) {
-        // Check if the screen config even allows skipping right now
-        if (this.skippable) {
-            // If text is typing, skip the typewriter effect instantly
-            if (!textSkipped.get()) {
-                textSkipped.set(true);
-                setTyping(false);
-                return true;
-            }
-            
-            // Text is fully displayed, trigger a smooth slide transition
-            if (getFadeState() != FadeState.FADE_TO_BLACK) {
-                setFadeState(FadeState.FADE_TO_BLACK);
-                setFadeProgress(0);
-            }
-            return true;
-        }
-        
-        return super.keyPressed(keyCode, pScanCode, pModifiers);
     }
     
     @Override

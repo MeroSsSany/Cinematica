@@ -11,6 +11,7 @@ import dev.merosssany.cinematica.core.data.rendering.TextureInfo;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSlide;
 import dev.merosssany.cinematica.renderer.FadeState;
+import dev.merosssany.cinematica.renderer.OverflowData;
 import dev.merosssany.cinematica.renderer.Renderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -20,11 +21,14 @@ import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.FormattedCharSequence;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static dev.merosssany.cinematica.core.Cinematica.*;
@@ -38,6 +42,7 @@ public class SlideshowScreen extends Screen {
     protected final float fadeSpeed;
     protected final boolean skippable;
     protected final Path root;
+    protected AtomicBoolean textSkipped = new AtomicBoolean();
     protected boolean shouldRender;
     
     private int stage;
@@ -50,6 +55,7 @@ public class SlideshowScreen extends Screen {
     private TextureInfo currentTexture;
     private String failed = "";
     private boolean typing;
+    private OverflowData cache;
     
     public SlideshowScreen(SlideshowSettings settings) {
         this(settings, Cinematica.getRoot(settings));
@@ -184,22 +190,16 @@ public class SlideshowScreen extends Screen {
     }
     
     public void nextStage() {
-        // Only allow advancing if we aren't already mid-fade out
-        if (fadeState != FadeState.FADE_TO_BLACK) {
-            
-            // If the text is still actively typing, we can finish the text instantly first
-            if (typing) {
-                // Force timePassed forward so typewriter completes immediately
-                SlideshowSlide currentStage = settings.slides()[stage];
-                double totalTextTime = (double) currentStage.subtext().length() / currentStage.typingSpeed();
-                timePassed = totalTextTime + (1.0 / fadeSpeed);
-                typing = false;
-                return; // Stop here so the player can read it, pressing skip again will change slides
-            }
-            
-            // Kick off the smooth black transition sequence
-            fadeState = FadeState.FADE_TO_BLACK;
-            fadeProgress = 0.0f;
+        // If text is typing, skip the typewriter effect instantly
+        if (!textSkipped.get()) {
+            textSkipped.set(true);
+            setTyping(false);
+        }
+        
+        // Text is fully displayed, trigger a smooth slide transition
+        if (getFadeState() != FadeState.FADE_TO_BLACK) {
+            setFadeState(FadeState.FADE_TO_BLACK);
+            setFadeProgress(0);
         }
     }
     
@@ -217,6 +217,8 @@ public class SlideshowScreen extends Screen {
         
         failed = "";
         ClientCameraMemory.render = false;
+        cache = null;
+        textSkipped.set(false);
         
         List<String> commands = settings.slides()[stage].commands();
         
@@ -276,21 +278,27 @@ public class SlideshowScreen extends Screen {
         int backgroundColor = toHex(currentStage.backgroundColor());
         
         if (settings.largerTextBackground()) {
-            // 1. Calculate the Y-coordinates for better readability
-            int gradientTop = this.height - settings.offset().y;
-            int solidTop = this.height - (settings.offset().y / 2);
-            int centerX = this.width / 2;
+            if (cache == null) cache = Renderer.layoutText(font, List.of(subtext.split("\n")), this.width);
             
-            // Smooth fade into solid black at the bottom
-            graphics.fillGradient(0, gradientTop, this.width, solidTop, 0x00000000, backgroundColor);
-            graphics.fill(0, solidTop, this.width, this.height, backgroundColor);
+            float scale = 1.5f;
+            int textHeight = cache.height() + 2;
+            int titleHeight = (int) (font.lineHeight * scale);
+            int gradientTopHeight = titleHeight + (titleHeight / 2);
+            int gradientTotalHeight = textHeight + gradientTopHeight;
+            int pYText = this.height - textHeight - 8;
+            int pXText = this.width / 2;
+            int pYTitle = gradientTopHeight + titleHeight;
             
-            // We pass centerX and set 'center' to true for the helper method
-            drawScaledString(this.font, graphics, title, centerX, solidTop - font.lineHeight - 5, 1.5f, titleColor, true);
+            graphics.fillGradient(0, this.height - gradientTotalHeight - 8, this.width, pYText, 0x00000000, 0xFF000000);
+            graphics.fill(0, pYText, this.width, this.height, 0xFF000000);
             
-            // We use drawCenteredString to ensure it's perfectly balanced
-            int subtextY = solidTop + ( (this.height - solidTop) / 2 ) - (font.lineHeight / 2);
-            graphics.drawCenteredString(font, visibleText, centerX, subtextY, textColor);
+            drawScaledString(font, graphics, title, this.width / 2, pYTitle, scale, titleColor, true);
+            
+            for (int i = 0; i < cache.lines().size(); i++) {
+                int nativeY = pYText + (i * (font.lineHeight + 1));
+                FormattedCharSequence line = getFormattedCharSequence(cache, i, cache.lines().size(), speed);
+                graphics.drawCenteredString(font, line, pXText, nativeY, textColor);
+            }
             
         } else {
             // Floating Box Logic
@@ -298,6 +306,46 @@ public class SlideshowScreen extends Screen {
             drawScaledString(this.font, graphics, currentStage.title(), posX + (width / 2), posY, 1.5f, titleColor, true);
             graphics.drawCenteredString(this.font, visibleText, posX + (width / 2), posY + height + 2, textColor);
         }
+    }
+    
+    protected @NotNull FormattedCharSequence getFormattedCharSequence(OverflowData overflow, int i, int total, int speed) {
+        // If the user skipped the text, bypass calculations and draw the whole line instantly
+        if (textSkipped.get()) {
+            if (total - 1 == i) {
+                setTyping(false);
+            }
+            return (visitor) -> overflow.lines().get(i).accept(visitor);
+        }
+        
+        // Calculate how many characters were in previous lines to create a delay
+        int previousChars = 0;
+        for (int j = 0; j < i; j++) {
+            previousChars += overflow.lengths()[j];
+        }
+        
+        int totalCharsToShow = (int) (getTimePassed() * speed);
+        int charsForThisLine = Math.max(0, totalCharsToShow - previousChars);
+        int maxChars = overflow.lengths()[i];
+        int finalCharsToShow = Math.min(maxChars, charsForThisLine);
+        
+        // If ANY line is not at max characters yet, we are still typing
+        if (finalCharsToShow < maxChars) {
+            setTyping(true);
+        } else if (total - 1 == i) {
+            setTyping(false);
+            textSkipped.set(true);
+        }
+        
+        return (visitor) -> {
+            int[] count = {0};
+            return overflow.lines().get(i).accept((index, style, codePoint) -> {
+                if (count[0] < finalCharsToShow) {
+                    count[0]++;
+                    return visitor.accept(index, style, codePoint);
+                }
+                return false;
+            });
+        };
     }
     
     protected static int toHex(String text) {
@@ -429,29 +477,12 @@ public class SlideshowScreen extends Screen {
         lastTime = glfwGetTime();
     }
     
-    @Override
-    public boolean shouldCloseOnEsc() {
-        return skippable;
-    }
-    
     public boolean isTyping() {
         return typing;
     }
     
     protected void setTyping(boolean typing) {
         this.typing = typing;
-    }
-    
-    @Override
-    public void onClose() {
-        super.onClose();
-        cleanup();
-    }
-    
-    @Override
-    public void removed() {
-        super.removed();
-        cleanup();
     }
     
     protected void cleanup() {
@@ -466,5 +497,33 @@ public class SlideshowScreen extends Screen {
             player.startFadeOut(1.5f);
             thread.requestExitAfterPlayback();
         });
+    }
+    
+    @Override
+    public boolean shouldCloseOnEsc() {
+        return skippable;
+    }
+    
+    @Override
+    public void onClose() {
+        super.onClose();
+        cleanup();
+    }
+    
+    @Override
+    public void removed() {
+        super.removed();
+        cleanup();
+    }
+    
+    @Override
+    public boolean keyPressed(int keyCode, int pScanCode, int pModifiers) {
+        // Check if the screen config even allows skipping right now
+        if (this.skippable) {
+            nextStage();
+            return true;
+        }
+        
+        return super.keyPressed(keyCode, pScanCode, pModifiers);
     }
 }

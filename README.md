@@ -26,13 +26,13 @@ Unlike traditional mods, Cinematica doesn’t add new blocks, items, or dimensio
 
 ## 📊 Development Progress
 
-| Feature System               | Completion  | Notes / Status                                                                            |
-|------------------------------|:-----------:|-------------------------------------------------------------------------------------------|
-| **Independent Audio System** |   `100%`    | Forked and optimized from *Startup Music Tone*.                                           |
-| **Death Screens**            |   `100%`    | Operational subset of slideshows. Bound via `/cinematica attach <entities> "<slideshow>"` |
-| **Slideshow Engine**         |    `98%`    | Fully working; fixing minor issues with `largerTextBackground`.                           |
-| **Credits Screens**          |    `97%`    | Core mechanics complete; planning feature-set expansions.                                 |
-| **Dialogue System**          |    `50%`    | **Active Work in Progress.**                                                              |
+| Feature System               | Completion | Notes / Status                                                                            |
+|------------------------------|:----------:|-------------------------------------------------------------------------------------------|
+| **Independent Audio System** |   `100%`   | Forked and optimized from *Startup Music Tone*.                                           |
+| **Death Screens**            |   `100%`   | Operational subset of slideshows. Bound via `/cinematica attach <entities> "<slideshow>"` |
+| **Slideshow Engine**         |   `100%`   | Fully working.                                                                            |
+| **Credits Screens**          |   `97%`    | Core mechanics complete; planning feature-set expansions.                                 |
+| **Dialogue System**          |   `50%`    | **Active Work in Progress.**                                                              |
 
 ---
 
