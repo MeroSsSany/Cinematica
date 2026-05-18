@@ -40,10 +40,12 @@ public class CineDeathScreen extends SlideshowScreen {
     private boolean started;
     private boolean ended;
     private int prevStage = -1;
-    private String cache;
+    private List<String> cache;
+    private String cacheSubtext;
     
     protected final DeathScreenContext context;
     private double delta;
+    private OverflowData overflow;
     
     public CineDeathScreen(DeathScreenContext context) {
         super(Cinematica.getSlideshow(context.settings().name()));
@@ -90,13 +92,16 @@ public class CineDeathScreen extends SlideshowScreen {
     protected void renderText(GuiGraphics graphics, String subtext, String title, SlideshowSlide currentStage) {
         if (context.settings().useDefaultSlideshow() && !isFailed()) {
             
-            super.renderText(graphics, contextualize(subtext), title, currentStage);
+            super.renderText(graphics, slideshowContextualize(subtext), title, currentStage);
             return;
         }
         
-        OverflowData overflow = Renderer.layoutText(this.font, getStrings(subtext), this.width);
+        if (overflow == null) overflow = Renderer.layoutText(this.font, getStrings(subtext), this.width);
+
+        int totalLinesCount = overflow.lines().size();
+        int staticTextHeight = totalLinesCount * font.lineHeight + (totalLinesCount - 1);
+        int pY = (this.height / 2) - (staticTextHeight / 2);
         
-        int pY = (this.height / 2) - (overflow.height() / 2);
         int pX = this.width / 2;
         int speed = currentStage.typingSpeed();
         
@@ -148,10 +153,19 @@ public class CineDeathScreen extends SlideshowScreen {
     private @NotNull List<String> getStrings(String subtext) {
         if (getStage() != prevStage) {
             prevStage = getStage();
-            cache = contextualize(subtext);
+            cache = List.of(contextualize(subtext).split("\n"));
         }
         
-        return List.of(cache.split("\n"));
+        return cache;
+    }
+    
+    private String slideshowContextualize(String subtext) {
+        if (getStage() != prevStage) { // it's safe due to being called when getStrings() isn't allowed.
+            prevStage = getStage();
+            
+            cacheSubtext = contextualize(subtext);
+        }
+        return cacheSubtext;
     }
     
     private String contextualize(String subtext) {
@@ -186,6 +200,12 @@ public class CineDeathScreen extends SlideshowScreen {
                 .replace("$health", String.format("%.1f", player.getHealth()))
                 .replace("$death_message", context.deathMessage())
                 .replace("$dimension", dimensionName);
+    }
+    
+    @Override
+    protected void reset() {
+        super.reset();
+        overflow = null;
     }
     
     @Override

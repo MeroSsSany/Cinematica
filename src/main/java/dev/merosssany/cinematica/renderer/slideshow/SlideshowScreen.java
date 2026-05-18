@@ -22,7 +22,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.FormattedCharSequence;
-import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
 import java.nio.file.Path;
@@ -203,7 +202,7 @@ public class SlideshowScreen extends Screen {
         }
     }
     
-    private void reset() {
+    protected void reset() {
         timePassed = 0;
         fadeState = FadeState.FADE_FROM_BLACK;
         fadeProgress = 0;
@@ -312,7 +311,7 @@ public class SlideshowScreen extends Screen {
         return !failed.isEmpty();
     }
     
-    protected @NotNull FormattedCharSequence getFormattedCharSequence(OverflowData overflow, int i, int total, int speed) {
+    protected FormattedCharSequence getFormattedCharSequence(OverflowData overflow, int i, int total, int speed) {
         // If the user skipped the text, bypass calculations and draw the whole line instantly
         if (textSkipped.get()) {
             if (total - 1 == i) {
