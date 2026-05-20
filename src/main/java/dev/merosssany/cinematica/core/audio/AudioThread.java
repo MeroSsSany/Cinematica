@@ -43,13 +43,19 @@ public class AudioThread extends Thread {
                     try {
                         task.run();
                     } catch (Exception e) {
-                        logger.error("Error has occurred in the dispatched task.",e);
+                        logger.error("Error has occurred in the dispatched task.", e);
                     }
                 }
                 
-                player.updateStreaming();
-                player.updateFadeProgress((float) delta);
+                // Process audio state operations sequentially on the same thread context
+                if (player.isStreaming()) {
+                    player.updateStreaming();
+                    if (player.isFading()) {
+                        player.updateFadeProgress((float) delta);
+                    }
+                }
                 
+                // Evaluate end conditions smoothly without multithreading data anomalies
                 if (!player.isStreaming() && !player.isLooping() && !player.isFading() && !end.get()) {
                     end.set(true);
                     if (endCallback != null) {
@@ -59,26 +65,25 @@ public class AudioThread extends Thread {
                 }
                 
                 try {
-                    Thread.sleep(16);
+                    // Waking up frequently is safe since updateStreaming chunks are small (1024 samples)
+                    Thread.sleep(10);
                 } catch (InterruptedException ignored) {
                     break;
                 }
             }
-            
         } catch (Exception e) {
-            logger.error("Error has occurred in the AudioThread",e);
+            logger.error("Error has occurred in the AudioThread", e);
         } finally {
             player.cleanup();
         }
     }
-    
     
     public void startStream(File file) {
         tasks.add(() -> {
             try {
                 player.startStream(file);
             } catch (Exception e) {
-                logger.error("Failed to start stream",e);
+                logger.error("Failed to start stream", e);
             }
         });
     }
@@ -88,7 +93,7 @@ public class AudioThread extends Thread {
             try {
                 player.startStream(inputStream);
             } catch (Exception e) {
-                logger.error("Failed to start stream",e);
+                logger.error("Failed to start stream", e);
             }
         });
     }
@@ -103,11 +108,6 @@ public class AudioThread extends Thread {
         tasks.add(runnable);
     }
     
-    public AudioPlayer getPlayer() {
-        return player;
-    }
-    
-    public void requestExitAfterPlayback() {
-        exitWhenDone.set(true);
-    }
+    public AudioPlayer getPlayer() { return player; }
+    public void requestExitAfterPlayback() { exitWhenDone.set(true); }
 }
