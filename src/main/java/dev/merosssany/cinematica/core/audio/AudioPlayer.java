@@ -27,7 +27,7 @@ public class AudioPlayer {
     private float initialFadeGain;
     private float currentVolume = 1.0f;
     
-    private static int samplesToRead = 1024; // Lower chunks reduce latency and timing drift
+    private static int samplesToRead = 4096;
     private byte[] byteBuffer;
     private ShortBuffer shortBuf;
     
@@ -36,7 +36,11 @@ public class AudioPlayer {
         currentStream = AudioReader.getStreamFromFile(path);
         if (currentStream == null) return;
         
-        initBuffers();
+        // Just prepare the buffers, don't open the line yet!
+        int channels = currentStream.getChannels();
+        shortBuf = MemoryUtil.memAllocShort(samplesToRead * channels);
+        byteBuffer = new byte[samplesToRead * channels * 2];
+        
         streaming = true;
         logger.info("Stream prepared for: \"{}\"", path.getName());
     }
@@ -46,15 +50,13 @@ public class AudioPlayer {
         currentStream = AudioReader.getAudioStream(inputStream);
         if (currentStream == null) return;
         
-        initBuffers();
-        streaming = true;
-        logger.info("Stream prepared from an existing stream");
-    }
-    
-    private void initBuffers() {
+        // Just prepare the buffers, don't open the line yet!
         int channels = currentStream.getChannels();
         shortBuf = MemoryUtil.memAllocShort(samplesToRead * channels);
         byteBuffer = new byte[samplesToRead * channels * 2];
+        
+        streaming = true;
+        logger.info("Stream prepared from an existing stream");
     }
     
     public boolean isFading() {
@@ -85,12 +87,14 @@ public class AudioPlayer {
                     byteBuffer = new byte[bytesToWrite];
                 }
                 
+                // Convert Shorts to Bytes (Little Endian)
                 for (int i = 0; i < totalSamples; i++) {
                     short sample = shortBuf.get(i);
                     byteBuffer[i * 2] = (byte) (sample & 0xFF);
                     byteBuffer[i * 2 + 1] = (byte) ((sample >> 8) & 0xFF);
                 }
                 
+                // The thread will wait here until the audio hardware is ready.
                 line.write(byteBuffer, 0, bytesToWrite);
             }
         }
@@ -103,6 +107,7 @@ public class AudioPlayer {
                     currentStream = nextStream;
                     
                     if (!shouldLoop) nextFile = null;
+                    
                     logger.info("Transitioned to next audio segment.");
                 } catch (Exception e) {
                     logger.error("Failed seamless transition", e);
@@ -166,7 +171,7 @@ public class AudioPlayer {
     private void finishAndStop() {
         fading = false;
         if (line != null) {
-            line.drain(); // Blocks safely on the specialized audio thread loop context
+            line.drain();
         }
         stop();
     }
@@ -176,6 +181,7 @@ public class AudioPlayer {
         fading = false;
         
         SourceDataLine localLine = this.line;
+        
         if (localLine != null) {
             try {
                 localLine.stop();
@@ -208,7 +214,9 @@ public class AudioPlayer {
     public boolean isLooping() { return shouldLoop; }
     public void shouldLoop(boolean shouldLoop) { this.shouldLoop = shouldLoop; }
     public void cleanup() { stop(); }
-    public void setSamples(int samples) { samplesToRead = samples; }
+    public void setSamples(int samples) {
+        samplesToRead = samples;
+    }
     public int getSamples() { return samplesToRead; }
     public boolean isStreaming() { return streaming; }
 }

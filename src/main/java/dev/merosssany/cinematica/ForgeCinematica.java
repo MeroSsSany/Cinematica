@@ -6,6 +6,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.core.FileManager;
 import dev.merosssany.cinematica.core.audio.data.factory.DefaultFactories;
+import dev.merosssany.cinematica.core.data.CinematicaProjectLoader;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
 import dev.merosssany.cinematica.core.security.ObjectKey;
 import dev.merosssany.cinematica.networking.NetworkManager;
@@ -38,6 +39,7 @@ public class ForgeCinematica {
         DefaultFactories.register();
         ModArgumentTypes.register(context.getModEventBus());
         NetworkManager.register();
+        CinematicaProjectLoader.key(key);
         
         MinecraftForge.EVENT_BUS.register(this);
         
@@ -48,10 +50,8 @@ public class ForgeCinematica {
         }
         
         try {
-             String name = Cinematica.load(FileManager.getCinematicaFolder().resolve("test"));
-             settings = Cinematica.getSlideshow(Cinematica.getSlideshows().iterator().next());
-            
-        } catch (Exception e) {
+            Cinematica.reloadAll(key);
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }

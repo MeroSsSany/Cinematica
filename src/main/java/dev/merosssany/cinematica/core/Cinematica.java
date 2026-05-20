@@ -26,6 +26,9 @@ import static dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings.ge
 
 public final class Cinematica {
     public static final String modId = "cinematica";
+    public static final String SCROLLING_TEXT = "scrolling_text";
+    public static final String DEATH_SCREEN = "death_screen";
+    public static final String SLIDESHOWS = "slideshows";
     
     private static final Map<SlideshowSettings, Path> slideshowRoots = new ConcurrentHashMap<>();
     private static final Logger logger = LogUtils.getLogger();
@@ -52,18 +55,18 @@ public final class Cinematica {
     }
     
     public static InputStream getAsset(String path, Path root) throws IOException {
-        boolean isResource = path.matches("[a-z0-9_-]+:[a-z0-9_-]+");
+        // A path is a resource if root is null OR if it explicitly contains a colon character ':'
+        boolean isResource = root == null || path.contains(":");
         
         if (isResource) {
-            ResourceLocation location = ResourceLocation.parse(path);
+            // Safe conversion step: handle cases where a colon may be missing for raw pack items
+            ResourceLocation location = path.contains(":") ? ResourceLocation.parse(path) : ResourceLocation.fromNamespaceAndPath(modId, path);
             Optional<Resource> optional = Minecraft.getInstance().getResourceManager().getResource(location);
             
             if (optional.isPresent()) {
-                Resource resource = optional.get();
-                return resource.open();
+                return optional.get().open();
             }
-            
-            throw new FileNotFoundException("Couldn't find ResourceLocation: "+ location);
+            throw new FileNotFoundException("Couldn't find ResourceLocation inside pack resources: " + location);
             
         } else {
             return new FileInputStream(root.resolve(path).toFile());
@@ -75,26 +78,30 @@ public final class Cinematica {
             throw new IllegalStateException("Cinematica is frozen!");
         }
         
-        // Verifying the assets
-        try {
-            getAsset(settings.musicPath(), root).close();
-        } catch (IOException e) {
-            logger.error("Couldn't load music file", e);
+        // Validate background audio loop asset track context gracefully
+        if (settings.musicPath() != null && !settings.musicPath().isEmpty()) {
+            try (InputStream is = getAsset(settings.musicPath(), root)) {
+                // File stream exists and opened successfully
+            } catch (IOException e) {
+                logger.error("Couldn't access music file context located at: {}", settings.musicPath(), e);
+            }
         }
         
         SlideshowSlide[] slides = settings.slides();
-        if (slides == null) throw new InvalidJsonException("There is no slides to register");
+        if (slides == null) throw new InvalidJsonException("There are no slides to register");
         
         for (SlideshowSlide slide : slides) {
-            try {
-                getAsset(slide.assetPath(), root).close();
+            try (InputStream is = getAsset(slide.assetPath(), root)) {
+                // File stream exists and opened successfully
             } catch (IOException e) {
-                logger.error("Couldn't access the asset: {}", slide.assetPath());
+                logger.error("Couldn't access image/render sequence slice asset element at: {}", slide.assetPath(), e);
             }
         }
         
         slideshowRegistry.register(settings);
-        slideshowRoots.put(settings, root);
+        if (root != null) {
+            slideshowRoots.put(settings, root);
+        }
         logger.info("Registered slideshow \"{}\" successfully", settings.name());
     }
     
@@ -184,8 +191,8 @@ public final class Cinematica {
     }
     
     private static void loadDeathScreens(Path root, JsonObject folders) throws IOException {
-        if (folders.has("death_screen")) {
-            String deathScreen = folders.get("death_screen").getAsString();
+        if (folders.has(DEATH_SCREEN)) {
+            String deathScreen = folders.get(DEATH_SCREEN).getAsString();
             File folder = root.resolve(deathScreen).toFile();
             
             if (folder.isDirectory()) {
@@ -212,8 +219,8 @@ public final class Cinematica {
     }
     
     private static void loadCreditScreens(Path root, JsonObject folders) throws InvalidJsonException, IOException {
-        if (folders.has("scrolling_text")) {
-            String scrollingText = folders.get("scrolling_text").getAsString();
+        if (folders.has(SCROLLING_TEXT)) {
+            String scrollingText = folders.get(SCROLLING_TEXT).getAsString();
             Path scrollingTextFolder = root.resolve(scrollingText);
             File scrollingTextFile = scrollingTextFolder.toFile();
             if (!scrollingTextFile.isDirectory())
@@ -236,9 +243,9 @@ public final class Cinematica {
     }
     
     private static void loadSlideshows(Path root, JsonObject folders) throws InvalidJsonException, IOException {
-        if (folders.has("slideshows")) {
+        if (folders.has(SLIDESHOWS)) {
             // Load the slideshow
-            String slideshowsFolderName = folders.get("slideshows").getAsString();
+            String slideshowsFolderName = folders.get(SLIDESHOWS).getAsString();
             Path slideshows = root.resolve(slideshowsFolderName);
             File slideshowsFile = slideshows.toFile();
             

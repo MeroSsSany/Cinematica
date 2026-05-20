@@ -3,7 +3,6 @@ package dev.merosssany.cinematica.networking;
 import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.networking.packet.OpenSlideshowPacket;
 import dev.merosssany.cinematica.networking.packet.SelectedScenePacket;
-import dev.merosssany.cinematica.networking.packet.SettingsPacket;
 import dev.merosssany.cinematica.networking.packet.SyncDeathContextPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -24,12 +23,6 @@ public class NetworkManager {
                 .clientAcceptedVersions(s -> true)
                 .serverAcceptedVersions(s -> true)
                 .simpleChannel();
-        
-        INSTANCE.messageBuilder(SettingsPacket.class, id(), NetworkDirection.PLAY_TO_CLIENT)
-                .encoder(SettingsPacket::encode)
-                .decoder(SettingsPacket::new)
-                .consumerMainThread(SettingsPacket::run)
-                .add();
         
         INSTANCE.messageBuilder(OpenSlideshowPacket.class, id(), NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(OpenSlideshowPacket::encode)
