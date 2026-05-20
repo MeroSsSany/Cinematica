@@ -128,4 +128,11 @@ public class Renderer {
         
         temp.close();
     }
+    
+    public static String formatTime(double timeInSeconds) {
+        int minutes = (int) (timeInSeconds / 60);
+        double seconds = timeInSeconds % 60;
+        
+        return String.format("%02d:%06.3f", minutes, seconds);
+    }
 }

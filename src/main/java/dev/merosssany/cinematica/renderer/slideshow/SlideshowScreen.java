@@ -31,8 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static dev.merosssany.cinematica.core.Cinematica.*;
-import static dev.merosssany.cinematica.renderer.Renderer.blurImage;
-import static dev.merosssany.cinematica.renderer.Renderer.drawScaledString;
+import static dev.merosssany.cinematica.renderer.Renderer.*;
 import static org.lwjgl.glfw.GLFW.glfwGetTime;
 
 public class SlideshowScreen extends Screen {
@@ -55,6 +54,8 @@ public class SlideshowScreen extends Screen {
     private String failed = "";
     private boolean typing;
     private OverflowData cache;
+    private double timeOnFirstRender = 0;
+    private final double timeOnConstructor;
     
     public SlideshowScreen(SlideshowSettings settings) {
         this(settings, Cinematica.getRoot(settings));
@@ -77,6 +78,7 @@ public class SlideshowScreen extends Screen {
             }
         }
         fadeSpeed = settings.fadeSpeed();
+        timeOnConstructor = glfwGetTime();
     }
     
     @Override
@@ -97,6 +99,8 @@ public class SlideshowScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mx, int my, float pTick) {
         shouldRender = !ClientCameraMemory.render;
+        if (timeOnFirstRender == 0) timeOnFirstRender = glfwGetTime();
+        
         if (settings.stopAudio()) stopAllAudio();
         else {
             SoundManager soundManager = Minecraft.getInstance().getSoundManager();
@@ -113,7 +117,7 @@ public class SlideshowScreen extends Screen {
         String subtext = currentStage.subtext();
         String title = currentStage.title();
         
-        if (fadeState == FadeState.NONE && timePassed >= currentStage.secondsToSwitch() && !typing) {
+        if (fadeState == FadeState.NONE && timePassed >= currentStage.secondsToSwitch()) {
             fadeState = FadeState.FADE_TO_BLACK;
             fadeProgress = 0;
         }
@@ -138,11 +142,11 @@ public class SlideshowScreen extends Screen {
             renderTexture(graphics, currentStage);
         }
         
-        renderVignette(graphics, currentStage);
-        
         if (!subtext.isEmpty() || !title.isEmpty()) {
             renderText(graphics, subtext, title, currentStage);
         }
+        
+        renderVignette(graphics, currentStage);
         
         if (fadeState != FadeState.NONE) {
             fadeProgress += (float) (fadeSpeed * delta);
@@ -152,14 +156,13 @@ public class SlideshowScreen extends Screen {
             float visualAlpha = fadeState == FadeState.FADE_FROM_BLACK? 1.0f - fadeProgress : fadeProgress;
             
             int alphaBits = (int) (visualAlpha * 255.0f);
-            int color = (alphaBits << 24) & 0xFF000000; // Force black RGB
+            int color = (alphaBits << 24) & 0xFF000000;
             
             graphics.pose().pushPose();
             graphics.pose().translate(0, 0, 500);
             graphics.fill(0, 0, this.width, this.height, color);
             graphics.pose().popPose();
             
-            // Transition Logic
             if (fadeProgress >= 1.0f) {
                 advance();
             }
@@ -167,6 +170,24 @@ public class SlideshowScreen extends Screen {
         
         if (failed != null && !failed.isEmpty()) {
             renderFailed(graphics, mx, my, failed);
+        }
+        
+        if (Cinematica.debug) {
+            double fadeDuration = 1.0 / settings.fadeSpeed();
+            double totalStageDuration = currentStage.secondsToSwitch() + fadeDuration;
+            double remainingTime = totalStageDuration - timePassed;
+            
+            graphics.pose().pushPose();
+            graphics.pose().translate(0, 0, 501);
+            
+            graphics.drawString(font, "Time before switch: " + formatTime(timePassed), 0, 0, 0xFFFFFFFF);
+            graphics.drawString(font, "Total Stage Duration: " + formatTime(totalStageDuration), 0, font.lineHeight, 0xFFFFFFFF);
+            graphics.drawString(font, "Remaining Time to switch: " + formatTime(Math.max(0, remainingTime)), 0, font.lineHeight * 2, 0xFFFFFFFF);
+            graphics.drawString(font, "Time since created: " + formatTime(current - timeOnConstructor), 0, font.lineHeight * 3, 0xFFFFFFFF);
+            graphics.drawString(font, "Total Time: " + formatTime(current - timeOnFirstRender), 0, font.lineHeight * 4, 0xFFFFFFFF);
+            graphics.drawString(font, String.format("Fade progress: %.2f (%s)", fadeProgress, fadeState.name()), 0, font.lineHeight * 5, 0xFFFFFFFF);
+            
+            graphics.pose().popPose();
         }
     }
     
@@ -252,7 +273,7 @@ public class SlideshowScreen extends Screen {
     }
     
     protected void renderVignette(GuiGraphics graphics, SlideshowSlide currentStage) {
-        if (currentStage.vignette().enable())
+        if (currentStage.vignette() != null && currentStage.vignette().enable())
             Renderer.drawVignette(graphics, width, height, currentStage.vignette().color());
     }
     
@@ -398,7 +419,7 @@ public class SlideshowScreen extends Screen {
         
         float eased = progress * progress * (3 - 2 * progress); // smoothstep
         
-        if (currentStage.kenBurns().useKenBurns()) {
+        if (currentStage.kenBurns() != null && currentStage.kenBurns().useKenBurns()) {
             // --- ZOOM LOGIC ---
             // Alternate Zoom In / Zoom Out
             float zoomStart = (stage % 2 == 0)? 1.1f : 1.0f;

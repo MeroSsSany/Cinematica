@@ -25,6 +25,7 @@ import java.util.List;
 
 import static dev.merosssany.cinematica.renderer.Renderer.layoutText;
 
+@Deprecated(forRemoval = true)
 public class DialogRenderer {
     public static class Cache {
         private final DialogSettings settings;

@@ -13,7 +13,7 @@ public record SlideshowSlide(
         String textColor,
         String backgroundColor,
         int typingSpeed,
-        int secondsToSwitch,
+        double secondsToSwitch,
         int blurRadius,
         RGBA tint,
         Vector2f anchor,

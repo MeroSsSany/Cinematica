@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_E;
 import static org.lwjgl.glfw.GLFW.glfwGetTime;
 
 public class CineDeathScreen extends SlideshowScreen {
@@ -139,7 +140,7 @@ public class CineDeathScreen extends SlideshowScreen {
         for (int i = 0; i < overflow.lines().size(); i++) {
             int nativeY = pY + (i * (font.lineHeight + 1));
             FormattedCharSequence line = getFormattedCharSequence(overflow, i, overflow.lines().size(), speed);
-            graphics.drawCenteredString(font, line, pX, nativeY, toHex(currentStage.textColor()));
+            graphics.drawCenteredString(font, line, pX, nativeY, currentStage.textColor() == null? 0xFFFFFFFF : toHex(currentStage.textColor()));
         }
         
         graphics.pose().popPose();
@@ -288,5 +289,16 @@ public class CineDeathScreen extends SlideshowScreen {
     protected void advance() {
         super.advance();
         textSkipped.set(false);
+    }
+    
+    @Override
+    public boolean keyPressed(int keyCode, int pScanCode, int pModifiers) {
+        if (!started) return false;
+        if (keyCode == GLFW_KEY_E) {
+            reset();
+            end();
+            return true;
+        }
+        return super.keyPressed(keyCode, pScanCode, pModifiers);
     }
 }

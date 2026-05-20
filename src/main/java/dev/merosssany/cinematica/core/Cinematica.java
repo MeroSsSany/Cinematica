@@ -35,6 +35,7 @@ public final class Cinematica {
     private static SlideshowRegistry slideshowRegistry;
     private static DeathScreenRegistry deathScreenRegistry;
     private static CreditScreenRegistry creditScreenRegistry;
+    public static boolean debug;
     
     public static void init(ObjectKey lock) {
         if (lock == null) {

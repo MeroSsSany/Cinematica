@@ -78,8 +78,17 @@ public class CinematicaCommands {
                                 Commands.literal("refresh")
                                         .requires(src -> src.hasPermission(2))
                                         .executes(CinematicaCommands::refresh)
+                        ).then(
+                                Commands.literal("debug")
+                                        .executes(CinematicaCommands::debug)
                         )
         );
+    }
+    
+    private static int debug(CommandContext<CommandSourceStack> context) {
+        Cinematica.debug = !Cinematica.debug;
+        context.getSource().sendSuccess(() -> Component.literal("Cinematica debugging has been "+(Cinematica.debug? "enabled":"disabled")), false);
+        return Command.SINGLE_SUCCESS;
     }
     
     private static int refresh(CommandContext<CommandSourceStack> context) {
