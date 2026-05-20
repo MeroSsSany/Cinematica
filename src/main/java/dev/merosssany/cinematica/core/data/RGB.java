@@ -115,6 +115,55 @@ public class RGB {
         }
     }
     
+    public static RGB getLightnessInvertedColor(float r, float g, float b) {
+        float max = Math.max(r, Math.max(g, b));
+        float min = Math.min(r, Math.min(g, b));
+        float lightness = (max + min) / 2.0f;
+        float targetLightness = 1.0f - lightness;
+        float h = 0, s = 0;
+        float d = max - min;
+        
+        if (d != 0) {
+            s = lightness > 0.5f ? d / (2.0f - max - min) : d / (max + min);
+            
+            if (max == r) {
+                h = (g - b) / d + (g < b ? 6.0f : 0.0f);
+            } else if (max == g) {
+                h = (b - r) / d + 2.0f;
+            } else if (max == b) {
+                h = (r - g) / d + 4.0f;
+            }
+            h /= 6.0f;
+        }
+        
+        return fromHSL(h, s, targetLightness);
+    }
+    
+    private static RGB fromHSL(float h, float s, float l) {
+        float r, g, b;
+        
+        if (s == 0) {
+            r = g = b = l; // Achromatic (gray)
+        } else {
+            float q = l < 0.5f ? l * (1.0f + s) : l + s - l * s;
+            float p = 2.0f * l - q;
+            r = hueToRGB(p, q, h + 1.0f / 3.0f);
+            g = hueToRGB(p, q, h);
+            b = hueToRGB(p, q, h - 1.0f / 3.0f);
+        }
+        
+        return new RGB(r, g, b);
+    }
+    
+    private static float hueToRGB(float p, float q, float t) {
+        if (t < 0f) t += 1f;
+        if (t > 1f) t -= 1f;
+        if (t < 1f / 6f) return p + (q - p) * 6f * t;
+        if (t < 1f / 2f) return q;
+        if (t < 2f / 3f) return p + (q - p) * (2f / 3f - t) * 6f;
+        return p;
+    }
+    
     public RGB getContrastColor() {
         return getContrastColor(this.red, this.green, this.blue);
     }

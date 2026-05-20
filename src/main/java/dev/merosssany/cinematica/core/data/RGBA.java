@@ -167,4 +167,8 @@ public class RGBA extends RGB {
         // Format: 0xAARRGGBB
         return (a << 24) | (r << 16) | (g << 8) | b;
     }
+    
+    public RGBA getLightnessInvertedColor() {
+        return new RGBA(RGB.getLightnessInvertedColor(r(), g(), b()), a());
+    }
 }
