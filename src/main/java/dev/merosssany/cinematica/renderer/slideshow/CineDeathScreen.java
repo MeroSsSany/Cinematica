@@ -79,7 +79,7 @@ public class CineDeathScreen extends SlideshowScreen {
             int x = (int) (width * 0.5f);
             float y = height * 0.25f;
             Renderer.drawScaledString(font, graphics,"You died!", x, (int) y, 2.5f,0xFFFF0000, true);
-            graphics.drawCenteredString(font, settings.name(), x, (int) (height * 3f), 0xFFFFFFFF);
+            graphics.drawCenteredString(font, settings.name(), x, (int) (height / 2.7f), 0xFFFFFFFF);
             
             for (Renderable renderable : this.renderables) {
                 renderable.render(graphics, mx, my, pTick);
