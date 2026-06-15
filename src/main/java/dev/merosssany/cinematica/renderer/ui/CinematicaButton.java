@@ -11,12 +11,14 @@ public abstract class CinematicaButton extends AbstractWidget {
     protected final RGBA color;
     protected final RGBA lineColor;
     protected final Font font;
+    private final RGBA contrastColor;
     
     public CinematicaButton(int pX, int pY, int pWidth, int pHeight, RGBA color, Component pMessage, Font font) {
         super(pX, pY, pWidth, pHeight, pMessage);
         this.color = color;
-        this.lineColor = color;
+        this.lineColor = color.getLightnessInvertedColor();
         this.font = font;
+        contrastColor = color.getContrastColor();
     }
     
     public RGBA getColor() {
@@ -44,7 +46,7 @@ public abstract class CinematicaButton extends AbstractWidget {
         int centerX = currentX + (this.width / 2);
         int centerY = currentY + (this.height / 2) - (font.lineHeight / 2);
         
-        graphics.drawCenteredString(font, getMessage(), centerX, centerY, 0xFFFFFFFF);
+        graphics.drawCenteredString(font, getMessage(), centerX, centerY, contrastColor.toHexadecimalARGB());
     }
     
     @Override
@@ -52,5 +54,10 @@ public abstract class CinematicaButton extends AbstractWidget {
     
     }
     
-    public abstract boolean clicked();
+    @Override
+    public void onClick(double pMouseX, double pMouseY) {
+        clicked();
+    }
+    
+    public abstract void clicked();
 }

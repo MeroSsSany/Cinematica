@@ -9,6 +9,7 @@ import dev.merosssany.cinematica.core.security.ObjectKey;
 import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
 import dev.merosssany.cinematica.networking.NetworkManager;
+import dev.merosssany.cinematica.networking.packet.OpenConfig;
 import dev.merosssany.cinematica.networking.packet.OpenSlideshowPacket;
 import dev.merosssany.cinematica.networking.packet.SelectedScenePacket;
 import dev.merosssany.cinematica.core.registry.CinematicaRegistries;
@@ -81,8 +82,20 @@ public class CinematicaCommands {
                         ).then(
                                 Commands.literal("debug")
                                         .executes(CinematicaCommands::debug)
+                        ).then(
+                                Commands.literal("config")
+                                        .requires(stack -> stack.hasPermission(2))
+                                        .executes(CinematicaCommands::config)
                         )
         );
+    }
+    
+    private static int config(CommandContext<CommandSourceStack> context) {
+        ServerPlayer player = context.getSource().getPlayer();
+        
+        if (player != null) NetworkManager.sendToPlayer(player, new OpenConfig());
+        
+        return Command.SINGLE_SUCCESS;
     }
     
     private static int debug(CommandContext<CommandSourceStack> context) {

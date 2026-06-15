@@ -56,6 +56,7 @@ public class SlideshowScreen extends Screen {
     private OverflowData cache;
     private double timeOnFirstRender = 0;
     private final double timeOnConstructor;
+    private boolean textureLoadingAttempted = false; // Prevents spamming file I/O on failure
     
     public SlideshowScreen(SlideshowSettings settings) {
         this(settings, Cinematica.getRoot(settings));
@@ -74,7 +75,7 @@ public class SlideshowScreen extends Screen {
             try {
                 thread.startStream(getAsset(settings.musicPath(), root));
             } catch (IOException e) {
-                Cinematica.getLogger().error("Failed to load music",e);
+                Cinematica.getLogger().error("Failed to load music", e);
             }
         }
         fadeSpeed = settings.fadeSpeed();
@@ -86,14 +87,17 @@ public class SlideshowScreen extends Screen {
         super.init();
         if (!init) {
             thread.start();
+            
+            SoundManager soundManager = Minecraft.getInstance().getSoundManager();
+            if (settings.stopAudio()) {
+                soundManager.stop();
+            } else {
+                soundManager.stop(null, SoundSource.MUSIC);
+            }
+            
             reset();
             init = true;
         }
-    }
-    
-    public void stopAllAudio() {
-        SoundManager soundManager = Minecraft.getInstance().getSoundManager();
-        soundManager.stop();
     }
     
     @Override
@@ -101,11 +105,6 @@ public class SlideshowScreen extends Screen {
         shouldRender = !ClientCameraMemory.render;
         if (timeOnFirstRender == 0) timeOnFirstRender = glfwGetTime();
         
-        if (settings.stopAudio()) stopAllAudio();
-        else {
-            SoundManager soundManager = Minecraft.getInstance().getSoundManager();
-            soundManager.stop(null, SoundSource.MUSIC);
-        }
         if (shouldRender) graphics.fill(0, 0, this.width, this.height, 0xFF000000);
         
         double current = glfwGetTime();
@@ -124,14 +123,13 @@ public class SlideshowScreen extends Screen {
         
         String locationName = "cinematica_slideshow_" + Cinematica.formalize(settings.name());
         
-        if (currentTexture == null && failed.isEmpty()) {
+        if (currentTexture == null && failed.isEmpty() && !textureLoadingAttempted) {
+            textureLoadingAttempted = true;
             try (InputStream stream = getAsset(currentStage.assetPath(), root)) {
                 currentTexture = loadTexture(stream, locationName, stage);
-                
             } catch (FileNotFoundException e) {
-                failed = "File " + settings.musicPath() + " is not found.\nIt maybe a failed extraction.";
+                failed = "File " + currentStage.assetPath() + " is not found.\nIt maybe a failed extraction.";
                 Cinematica.getLogger().error(failed, e);
-                
             } catch (IOException e) {
                 failed = e.getMessage();
                 Cinematica.getLogger().error(failed, e);
@@ -150,11 +148,9 @@ public class SlideshowScreen extends Screen {
         
         if (fadeState != FadeState.NONE) {
             fadeProgress += (float) (fadeSpeed * delta);
-            
             if (fadeProgress > 1.0f) fadeProgress = 1.0f;
             
-            float visualAlpha = fadeState == FadeState.FADE_FROM_BLACK? 1.0f - fadeProgress : fadeProgress;
-            
+            float visualAlpha = fadeState == FadeState.FADE_FROM_BLACK ? 1.0f - fadeProgress : fadeProgress;
             int alphaBits = (int) (visualAlpha * 255.0f);
             int color = (alphaBits << 24) & 0xFF000000;
             
@@ -200,7 +196,6 @@ public class SlideshowScreen extends Screen {
             if (stage < totalStage - 1) {
                 stage++;
                 reset();
-                
             } else {
                 end();
             }
@@ -210,13 +205,10 @@ public class SlideshowScreen extends Screen {
     }
     
     public void nextStage() {
-        // If text is typing, skip the typewriter effect instantly
         if (!textSkipped.get()) {
             textSkipped.set(true);
             setTyping(false);
         }
-        
-        // Text is fully displayed, trigger a smooth slide transition
         if (getFadeState() != FadeState.FADE_TO_BLACK) {
             setFadeState(FadeState.FADE_TO_BLACK);
             setFadeProgress(0);
@@ -227,8 +219,8 @@ public class SlideshowScreen extends Screen {
         timePassed = 0;
         fadeState = FadeState.FADE_FROM_BLACK;
         fadeProgress = 0;
+        textureLoadingAttempted = false;
         
-        // Texture cleanup
         if (currentTexture != null && currentTexture.texture() != null) {
             currentTexture.texture().close();
             Minecraft.getInstance().getTextureManager().release(currentTexture.location());
@@ -241,26 +233,25 @@ public class SlideshowScreen extends Screen {
         textSkipped.set(false);
         
         List<String> commands = settings.slides()[stage].commands();
-        
         if (commands != null) {
             for (String cmd : commands) {
                 String[] parts = cmd.split(" ");
-                String[] params = new String[parts.length-1];
+                String[] params = new String[parts.length - 1];
                 System.arraycopy(parts, 1, params, 0, params.length);
                 CinematicaCommandContext context = new CinematicaCommandContext(params);
                 CinematicaCommandParser.get().run(parts[0], context);
-                Cinematica.getLogger().warn(context.failure());
+                if (context.failure() != null) {
+                    Cinematica.getLogger().warn(context.failure());
+                }
             }
         }
     }
     
     protected void renderFailed(GuiGraphics graphics, int mx, int my, String failed) {
         graphics.drawCenteredString(font, "⚠ Asset Error", this.width / 2, this.height / 2, 0xFFFF5555);
-        
         List<Component> tooltipLines = Arrays.stream(failed.split("\n"))
                 .map(Component::literal)
                 .collect(Collectors.toList());
-        
         graphics.renderComponentTooltip(font, tooltipLines, mx, my);
     }
     
@@ -289,9 +280,9 @@ public class SlideshowScreen extends Screen {
         int posY = this.height - (settings.offset().y + (height * 2));
         
         if (settings.alternateTextPosition() && stage % 2 == 0)
-            posX = settings.offset().x; // Left side
+            posX = settings.offset().x;
         else
-            posX = this.width - settings.offset().x - width; // Right side
+            posX = this.width - settings.offset().x - width;
         
         int titleColor = toHex(currentStage.titleColor());
         int textColor = toHex(currentStage.textColor());
@@ -319,9 +310,7 @@ public class SlideshowScreen extends Screen {
                 FormattedCharSequence line = getFormattedCharSequence(cache, i, cache.lines().size(), speed);
                 graphics.drawCenteredString(font, line, pXText, nativeY, textColor);
             }
-            
         } else {
-            // Floating Box Logic
             graphics.fill(posX - 5, posY - 5, posX + width + 5, posY + (height * 2) + 5, backgroundColor);
             drawScaledString(this.font, graphics, currentStage.title(), posX + (width / 2), posY, 1.5f, titleColor, true);
             graphics.drawCenteredString(this.font, visibleText, posX + (width / 2), posY + height + 2, textColor);
@@ -333,15 +322,11 @@ public class SlideshowScreen extends Screen {
     }
     
     protected FormattedCharSequence getFormattedCharSequence(OverflowData overflow, int i, int total, int speed) {
-        // If the user skipped the text, bypass calculations and draw the whole line instantly
         if (textSkipped.get()) {
-            if (total - 1 == i) {
-                setTyping(false);
-            }
+            if (total - 1 == i) setTyping(false);
             return (visitor) -> overflow.lines().get(i).accept(visitor);
         }
         
-        // Calculate how many characters were in previous lines to create a delay
         int previousChars = 0;
         for (int j = 0; j < i; j++) {
             previousChars += overflow.lengths()[j];
@@ -352,7 +337,6 @@ public class SlideshowScreen extends Screen {
         int maxChars = overflow.lengths()[i];
         int finalCharsToShow = Math.min(maxChars, charsForThisLine);
         
-        // If ANY line is not at max characters yet, we are still typing
         if (finalCharsToShow < maxChars) {
             setTyping(true);
         } else if (total - 1 == i) {
@@ -373,7 +357,7 @@ public class SlideshowScreen extends Screen {
     }
     
     protected static int toHex(String text) {
-        return (int) Long.parseUnsignedLong(text.replace("#",""), 16);
+        return (int) Long.parseUnsignedLong(text.replace("#", ""), 16);
     }
     
     private String typewriter(String subtext, int speed) {
@@ -383,20 +367,20 @@ public class SlideshowScreen extends Screen {
     }
     
     protected TextureInfo loadTexture(InputStream stream, String locationName, int stage) throws IOException {
-        NativeImage image = NativeImage.read(stream);
-        
-        int radius = settings.slides()[stage].blurRadius();
-        blurImage(radius, image);
-        
-        DynamicTexture tex = new DynamicTexture(image);
-        
-        float imgW = image.getWidth();
-        float imgH = image.getHeight();
-        
-        ResourceLocation location = ResourceLocation.fromNamespaceAndPath(Cinematica.modId, locationName + "_" + stage);
-        
-        Minecraft.getInstance().getTextureManager().register(location, tex);
-        return new TextureInfo(imgW, imgH, tex, location);
+        // FIX #2: Wrap NativeImage in try-with-resources to prevent massive off-heap VRAM leak
+        try (NativeImage image = NativeImage.read(stream)) {
+            int radius = settings.slides()[stage].blurRadius();
+            blurImage(radius, image);
+            
+            // DynamicTexture copies pixel buffers into native bytes. Releasing the initial image is critical.
+            DynamicTexture tex = new DynamicTexture(image);
+            float imgW = image.getWidth();
+            float imgH = image.getHeight();
+            
+            ResourceLocation location = ResourceLocation.fromNamespaceAndPath(Cinematica.modId, locationName + "_" + stage);
+            Minecraft.getInstance().getTextureManager().register(location, tex);
+            return new TextureInfo(imgW, imgH, tex, location);
+        }
     }
     
     protected void renderTexture(GuiGraphics graphics, SlideshowSlide currentStage) {
@@ -405,7 +389,6 @@ public class SlideshowScreen extends Screen {
         float imgW = currentTexture.width();
         float imgH = currentTexture.height();
         
-        // Calculate Base Scale to fill the screen
         float baseScale = Math.max((float) this.width / imgW, (float) this.height / imgH);
         
         double totalTextTime = (double) currentStage.subtext().length() / currentStage.typingSpeed();
@@ -420,26 +403,18 @@ public class SlideshowScreen extends Screen {
         float eased = progress * progress * (3 - 2 * progress); // smoothstep
         
         if (currentStage.kenBurns() != null && currentStage.kenBurns().useKenBurns()) {
-            // --- ZOOM LOGIC ---
-            // Alternate Zoom In / Zoom Out
-            float zoomStart = (stage % 2 == 0)? 1.1f : 1.0f;
-            float zoomEnd = (stage % 2 == 0)? 1.0f : 1.1f;
+            float zoomStart = (stage % 2 == 0) ? 1.1f : 1.0f;
+            float zoomEnd = (stage % 2 == 0) ? 1.0f : 1.1f;
             currentZoom = zoomStart + (zoomEnd - zoomStart) * progress;
             
             if (currentStage.kenBurns().panCameraHorizontally()) {
-                // --- PAN LOGIC ---
-                // Calculate the extra space we have to move within
-                // We multiply by currentZoom because a zoomed-in image has more "slack" to pan
                 float totalWidth = imgW * baseScale * currentZoom;
                 float extraWidth = totalWidth - this.width;
                 
-                // Pan horizontally based on stage index
                 if (extraWidth > 0) {
                     if (stage % 2 == 0) {
-                        // Pan Right to Left
                         panX = (extraWidth / 2f) - (eased * extraWidth);
                     } else {
-                        // Pan Left to Right
                         panX = -(extraWidth / 2f) + (eased * extraWidth);
                     }
                 }
@@ -447,7 +422,6 @@ public class SlideshowScreen extends Screen {
             
             if (currentStage.kenBurns().panCameraVertically()) {
                 float extraHeight = (imgH * baseScale * currentZoom) - this.height;
-                
                 if (extraHeight > 0) {
                     panY = (stage % 2 == 0)
                             ? (extraHeight / 2f) - (eased * extraHeight)
@@ -461,15 +435,13 @@ public class SlideshowScreen extends Screen {
         float pivotX = this.width * currentStage.anchor().x;
         float pivotY = this.height * currentStage.anchor().y;
         graphics.pose().translate(pivotX, pivotY, 0);
-        
         graphics.pose().translate(panX, panY, 0);
         
         float finalScale = baseScale * currentZoom;
         graphics.pose().scale(finalScale, finalScale, 1.0f);
         
         graphics.pose().translate(-imgW * currentStage.anchor().x, -imgH * currentStage.anchor().y, 0);
-        
-        graphics.blit(currentTexture.location(), 0, 0, 0, 0, (int)imgW, (int)imgH, (int)imgW, (int)imgH);
+        graphics.blit(currentTexture.location(), 0, 0, 0, 0, (int) imgW, (int) imgH, (int) imgW, (int) imgH);
         
         graphics.pose().popPose();
         
@@ -542,12 +514,10 @@ public class SlideshowScreen extends Screen {
     
     @Override
     public boolean keyPressed(int keyCode, int pScanCode, int pModifiers) {
-        // Check if the screen config even allows skipping right now
         if (this.skippable) {
             nextStage();
             return true;
         }
-        
         return super.keyPressed(keyCode, pScanCode, pModifiers);
     }
 }

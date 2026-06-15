@@ -8,6 +8,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FastColor;
 import net.minecraft.util.FormattedCharSequence;
 
 import java.util.ArrayList;
@@ -29,16 +30,13 @@ public class Renderer {
         List<FormattedCharSequence> wrappedLines = new ArrayList<>();
         int maxWidth = screenWidth - 32;
         int fontHeight = font.lineHeight + 1;
-        int totalHeight;
         
         for (String originalLine : text) {
             List<FormattedCharSequence> splitLines = font.split(Component.literal(originalLine), maxWidth);
-            
             wrappedLines.addAll(splitLines);
         }
         
-        totalHeight = wrappedLines.size() * fontHeight;
-        
+        int totalHeight = wrappedLines.size() * fontHeight;
         int[] length = new int[wrappedLines.size()];
         for (int i = 0; i < length.length; i++) {
             length[i] = getLength(wrappedLines.get(i));
@@ -87,43 +85,69 @@ public class Renderer {
         
         graphics.pose().popPose();
         
-        // Reset to vanilla standards immediately
+        // Reset pipeline back to standard vanilla defaults completely
         RenderSystem.defaultBlendFunc();
         RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
         graphics.setColor(1.0f, 1.0f, 1.0f, 1.0f);
-        
         RenderSystem.depthMask(true);
         RenderSystem.enableDepthTest();
     }
     
+    /**
+     * Splits computation steps into safe Horizontal and Vertical tracks.
+     * Uses FastColor architecture to ensure platform cross-compatibility across graphics cards.
+     */
     public static void blurImage(int radius, NativeImage image) {
         if (radius <= 0) return;
         
         int width = image.getWidth();
         int height = image.getHeight();
         
-        // Allocate the helper image buffer once
         NativeImage temp = new NativeImage(image.format(), width, height, false);
         
-        for (int i = 0; i < radius; i++) {
-            for (int y = 1; y < height - 1; y++) {
-                for (int x = 1; x < width - 1; x++) {
-                    int c1 = image.getPixelRGBA(x, y);
-                    int c2 = image.getPixelRGBA(x - 1, y);
-                    int c3 = image.getPixelRGBA(x + 1, y);
-                    int c4 = image.getPixelRGBA(x, y - 1);
-                    int c5 = image.getPixelRGBA(x, y + 1);
+        // Run the separable tracks across the pass allocations
+        for (int pass = 0; pass < radius; pass++) {
+            // Pass 1: Blur Horizontally
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    int rSum = 0, gSum = 0, bSum = 0, aSum = 0;
+                    int count = 0;
                     
-                    int a = ((c1 >> 24 & 0xFF) + (c2 >> 24 & 0xFF) + (c3 >> 24 & 0xFF) + (c4 >> 24 & 0xFF) + (c5 >> 24 & 0xFF)) / 5;
-                    int b = ((c1 >> 16 & 0xFF) + (c2 >> 16 & 0xFF) + (c3 >> 16 & 0xFF) + (c4 >> 16 & 0xFF) + (c5 >> 16 & 0xFF)) / 5;
-                    int g = ((c1 >> 8 & 0xFF) + (c2 >> 8 & 0xFF) + (c3 >> 8 & 0xFF) + (c4 >> 8 & 0xFF) + (c5 >> 8 & 0xFF)) / 5;
-                    int r = ((c1 & 0xFF) + (c2 & 0xFF) + (c3 & 0xFF) + (c4 & 0xFF) + (c5 & 0xFF)) / 5;
-                    
-                    temp.setPixelRGBA(x, y, (a << 24) | (b << 16) | (g << 8) | r);
+                    for (int dx = -1; dx <= 1; dx++) {
+                        int nx = x + dx;
+                        if (nx >= 0 && nx < width) {
+                            int pixel = image.getPixelRGBA(nx, y);
+                            rSum += FastColor.ABGR32.red(pixel);
+                            gSum += FastColor.ABGR32.green(pixel);
+                            bSum += FastColor.ABGR32.blue(pixel);
+                            aSum += FastColor.ABGR32.alpha(pixel);
+                            count++;
+                        }
+                    }
+                    temp.setPixelRGBA(x, y, FastColor.ABGR32.color(aSum / count, bSum / count, gSum / count, rSum / count));
                 }
             }
             
-            image.copyFrom(temp);
+            // Pass 2: Blur Vertically back into origin buffer matrix
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    int rSum = 0, gSum = 0, bSum = 0, aSum = 0;
+                    int count = 0;
+                    
+                    for (int dy = -1; dy <= 1; dy++) {
+                        int ny = y + dy;
+                        if (ny >= 0 && ny < height) {
+                            int pixel = temp.getPixelRGBA(x, ny);
+                            rSum += FastColor.ABGR32.red(pixel);
+                            gSum += FastColor.ABGR32.green(pixel);
+                            bSum += FastColor.ABGR32.blue(pixel);
+                            aSum += FastColor.ABGR32.alpha(pixel);
+                            count++;
+                        }
+                    }
+                    image.setPixelRGBA(x, y, FastColor.ABGR32.color(aSum / count, bSum / count, gSum / count, rSum / count));
+                }
+            }
         }
         
         temp.close();
@@ -132,7 +156,10 @@ public class Renderer {
     public static String formatTime(double timeInSeconds) {
         int minutes = (int) (timeInSeconds / 60);
         double seconds = timeInSeconds % 60;
-        
         return String.format("%02d:%06.3f", minutes, seconds);
+    }
+    
+    public static boolean inBounds(int x, int y, int width, int height, int pointX, int pointY) {
+        return pointX >= x && pointX <= (x + width) && pointY >= y && pointY <= (y + height);
     }
 }

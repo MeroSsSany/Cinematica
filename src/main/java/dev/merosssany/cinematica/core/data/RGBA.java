@@ -86,6 +86,10 @@ public class RGBA extends RGB {
         return new RGBA(color);
     }
     
+    public static RGBA fromHex(int hex) {
+        return null;
+    }
+    
     public float getAlpha() {
         return alpha;
     }

@@ -37,7 +37,6 @@ public class CineDeathScreen extends SlideshowScreen {
     private double driftY = 0;
     private double targetDriftX = 0;
     private double targetDriftY = 0;
-    private double driftTimer = 0;
     private boolean started;
     private boolean ended;
     private int prevStage = -1;
@@ -78,7 +77,7 @@ public class CineDeathScreen extends SlideshowScreen {
         if (ended) {
             int x = (int) (width * 0.5f);
             float y = height * 0.25f;
-            Renderer.drawScaledString(font, graphics,"You died!", x, (int) y, 2.5f,0xFFFF0000, true);
+            Renderer.drawScaledString(font, graphics, "You died!", x, (int) y, 2.5f, 0xFFFF0000, true);
             graphics.drawCenteredString(font, settings.name(), x, (int) (height / 2.7f), 0xFFFFFFFF);
             
             for (Renderable renderable : this.renderables) {
@@ -92,13 +91,12 @@ public class CineDeathScreen extends SlideshowScreen {
     @Override
     protected void renderText(GuiGraphics graphics, String subtext, String title, SlideshowSlide currentStage) {
         if (context.settings().useDefaultSlideshow() && !isFailed()) {
-            
             super.renderText(graphics, slideshowContextualize(subtext), title, currentStage);
             return;
         }
         
         if (overflow == null) overflow = Renderer.layoutText(this.font, getStrings(subtext), this.width);
-
+        
         int totalLinesCount = overflow.lines().size();
         int staticTextHeight = totalLinesCount * font.lineHeight + (totalLinesCount - 1);
         int pY = (this.height / 2) - (staticTextHeight / 2);
@@ -106,14 +104,7 @@ public class CineDeathScreen extends SlideshowScreen {
         int pX = this.width / 2;
         int speed = currentStage.typingSpeed();
         
-        driftTimer += delta;
-        int timeToSwitch = 3;
-        
-        // Time to pick a new slow, organic target position
-        if (driftTimer >= timeToSwitch) {
-            driftTimer = 0;
-            
-            // Generate a random angle and small drift radius (e.g., up to 6 pixels max)
+        if (targetDriftX == driftX && targetDriftY == driftY) {
             float angle = ThreadLocalRandom.current().nextFloat(0, (float) (Math.PI * 2));
             float maxRadius = 3.0f;
             float length = ThreadLocalRandom.current().nextFloat(2.0f, maxRadius);
@@ -122,8 +113,6 @@ public class CineDeathScreen extends SlideshowScreen {
             targetDriftY = Math.cos(angle) * length;
         }
         
-        // Smoothly interpolate the drift values.
-        // 1.5f is the drift speed factor. Adjust higher for snappier, lower for lazier movement.
         float driftSpeed = 0.5f;
         
         if (settings.alternateTextPosition()) {
@@ -134,13 +123,12 @@ public class CineDeathScreen extends SlideshowScreen {
             driftY = 0;
         }
         graphics.pose().pushPose();
-        
         graphics.pose().translate(driftX, driftY, 0d);
         
         for (int i = 0; i < overflow.lines().size(); i++) {
             int nativeY = pY + (i * (font.lineHeight + 1));
             FormattedCharSequence line = getFormattedCharSequence(overflow, i, overflow.lines().size(), speed);
-            graphics.drawCenteredString(font, line, pX, nativeY, currentStage.textColor() == null? 0xFFFFFFFF : toHex(currentStage.textColor()));
+            graphics.drawCenteredString(font, line, pX, nativeY, currentStage.textColor() == null ? 0xFFFFFFFF : toHex(currentStage.textColor()));
         }
         
         graphics.pose().popPose();
@@ -156,22 +144,20 @@ public class CineDeathScreen extends SlideshowScreen {
             prevStage = getStage();
             cache = List.of(contextualize(subtext).split("\n"));
         }
-        
         return cache;
     }
     
     private String slideshowContextualize(String subtext) {
         if (getStage() != prevStage) { // it's safe due to being called when getStrings() isn't allowed.
             prevStage = getStage();
-            
             cacheSubtext = contextualize(subtext);
         }
         return cacheSubtext;
     }
     
     private String contextualize(String subtext) {
-        // Safety checks for attacker data
         LocalPlayer player = getMinecraft().player;
+        if (player == null) return subtext;
         
         String attackerName = "The World";
         String attackerHealth = "0";
@@ -214,15 +200,13 @@ public class CineDeathScreen extends SlideshowScreen {
         super.init();
         this.exitButtons.clear();
         
-        // Create the buttons but keep them hidden/inactive initially
-        Component respawnText = isHardcore()? Component.translatable("deathScreen.spectate") : Component.translatable("deathScreen.respawn");
+        Component respawnText = isHardcore() ? Component.translatable("deathScreen.spectate") : Component.translatable("deathScreen.respawn");
         
         Button respawnBtn = Button.builder(respawnText, (btn) -> {
-            this.minecraft.player.respawn();
+            if (this.minecraft.player != null) this.minecraft.player.respawn();
             btn.active = false;
             onClose();
             getMinecraft().setScreen(null);
-            
         }).bounds(this.width / 2 - 100, this.height / 2 + 20, 200, 20).build();
         
         Button titleBtn = Button.builder(Component.translatable("deathScreen.titleScreen"), (btn) -> {
@@ -256,7 +240,7 @@ public class CineDeathScreen extends SlideshowScreen {
             ConfirmScreen confirm = new DeathScreen.TitleConfirmScreen((confirmed) -> {
                 if (confirmed) this.exitToTitleScreen();
                 else {
-                    this.minecraft.player.respawn();
+                    if (this.minecraft.player != null) this.minecraft.player.respawn();
                     this.minecraft.setScreen(null);
                 }
             }, Component.translatable("deathScreen.quit.confirm"), CommonComponents.EMPTY,
@@ -266,7 +250,7 @@ public class CineDeathScreen extends SlideshowScreen {
     }
     
     private boolean isHardcore() {
-        return this.minecraft.level.getLevelData().isHardcore();
+        return this.minecraft.level != null && this.minecraft.level.getLevelData().isHardcore();
     }
     
     private void exitToTitleScreen() {

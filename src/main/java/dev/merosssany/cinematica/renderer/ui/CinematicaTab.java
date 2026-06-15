@@ -5,7 +5,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 
-public class CinematicaTab extends CinematicaButton {
+public abstract class CinematicaTab extends CinematicaButton {
     private final int index;
     private boolean active = false;
 
@@ -50,16 +50,11 @@ public class CinematicaTab extends CinematicaButton {
             graphics.fill(currentX + 1, currentY + 1, currentX + width - 1, currentY + height - 1, fillHex);
         }
 
-        // Text coloring using your lightness rules
+        // Text coloring using lightness rules
         int textHex = active ? 0xFFFFFFFF : 0xAAAAAA;
         int centerX = currentX + (width / 2);
         int centerY = currentY + (height / 2) - (font.lineHeight / 2);
         
         graphics.drawCenteredString(font, getMessage(), centerX, centerY, textHex);
-    }
-
-    @Override
-    public boolean clicked() {
-        return true; // Used by screen click handler
     }
 }

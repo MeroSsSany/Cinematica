@@ -21,6 +21,7 @@ public class CinematicaHeader implements Renderable, NarratableEntry, GuiEventLi
     protected String header;
     protected boolean dark;
     protected int x, y, width, height;
+    private final RGBA contrastColor;
     
     public CinematicaHeader(boolean dark, int x, int y, int width, int height, Font font, String header, RGBA color) {
         this.dark = dark;
@@ -32,6 +33,7 @@ public class CinematicaHeader implements Renderable, NarratableEntry, GuiEventLi
         this.header = header;
         this.color = color;
         lineColor = color.getLightnessInvertedColor();
+        contrastColor = color.getContrastColor();
     }
     
     public boolean isDark() {
@@ -86,9 +88,11 @@ public class CinematicaHeader implements Renderable, NarratableEntry, GuiEventLi
     public void render(GuiGraphics graphics, int pMouseX, int pMouseY, float pPartialTick) {
         int currentHeight = getHeight();
         
+        graphics.fill(x, y, x + width, y + height, color.toHexadecimalARGB());
+        
         graphics.blit(
                 isDark() ? CINEMATICA_DARK : CINEMATICA,
-                this.x, this.y,
+                this.x + 4, this.y,
                 0.0F, 0.0F,
                 currentHeight, currentHeight,
                 currentHeight, currentHeight
@@ -102,7 +106,7 @@ public class CinematicaHeader implements Renderable, NarratableEntry, GuiEventLi
                 this.x + currentHeight + 4,
                 this.y,
                 scale,
-                color.toHexadecimalARGB(),
+                contrastColor.toHexadecimalARGB(),
                 false
         );
         

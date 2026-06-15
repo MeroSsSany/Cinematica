@@ -1,6 +1,7 @@
 package dev.merosssany.cinematica.networking;
 
 import dev.merosssany.cinematica.core.Cinematica;
+import dev.merosssany.cinematica.networking.packet.OpenConfig;
 import dev.merosssany.cinematica.networking.packet.OpenSlideshowPacket;
 import dev.merosssany.cinematica.networking.packet.SelectedScenePacket;
 import dev.merosssany.cinematica.networking.packet.SyncDeathContextPacket;
@@ -40,6 +41,12 @@ public class NetworkManager {
                 .encoder(SyncDeathContextPacket::encode)
                 .decoder(SyncDeathContextPacket::new)
                 .consumerMainThread(SyncDeathContextPacket::handle)
+                .add();
+        
+        INSTANCE.messageBuilder(OpenConfig.class, id(), NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(OpenConfig::encode)
+                .decoder(OpenConfig::new)
+                .consumerMainThread(OpenConfig::handle)
                 .add();
     }
     
