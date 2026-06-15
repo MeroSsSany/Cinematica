@@ -5,26 +5,27 @@ import dev.merosssany.cinematica.core.data.CinematicaProjectLoader;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.RegisterClientReloadListenersEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 
-@Mod.EventBusSubscriber(modid = Cinematica.modId, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
+@EventBusSubscriber(modid = Cinematica.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
 public class ModBusEvents {
-        @SubscribeEvent
-        public static void onRegisterReloadListeners(RegisterClientReloadListenersEvent event) {
-            event.registerReloadListener(new SimplePreparableReloadListener<Void>() {
-                @Override
-                protected Void prepare(ResourceManager manager, ProfilerFiller profiler) {
-                    return null; 
-                }
-                
-                @Override
-                protected void apply(Void object, ResourceManager manager, ProfilerFiller profiler) {
-                    // This will now execute properly during startup and reload phases
-                    CinematicaProjectLoader.reloadProjects(manager);
-                }
-            });
-        }
+    
+    @SubscribeEvent
+    public static void onRegisterReloadListeners(RegisterClientReloadListenersEvent event) {
+        event.registerReloadListener(new SimplePreparableReloadListener<Void>() {
+            @Override
+            protected Void prepare(ResourceManager manager, ProfilerFiller profiler) {
+                return null;
+            }
+            
+            @Override
+            protected void apply(Void object, ResourceManager manager, ProfilerFiller profiler) {
+                // Executes cleanly when assets initialize or when pressing F3 + T
+                CinematicaProjectLoader.reloadProjects(manager);
+            }
+        });
     }
+}

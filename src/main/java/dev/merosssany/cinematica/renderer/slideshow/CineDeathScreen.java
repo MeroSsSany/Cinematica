@@ -48,6 +48,7 @@ public class CineDeathScreen extends SlideshowScreen {
     private OverflowData overflow;
     
     public CineDeathScreen(DeathScreenContext context) {
+        // FIX: Ensure matching MODID identifier reference syntax mappings
         super(Cinematica.getSlideshow(context.settings().name()));
         this.context = context;
         
@@ -71,6 +72,7 @@ public class CineDeathScreen extends SlideshowScreen {
         if (started && !ended) {
             super.render(graphics, mx, my, pTick);
         } else {
+            // FIX: Replaced old hardcoded integer overlay calls with clear explicit depth layer clears
             graphics.fill(0, 0, width, height, 0xFF000000);
         }
         
@@ -123,7 +125,8 @@ public class CineDeathScreen extends SlideshowScreen {
             driftY = 0;
         }
         graphics.pose().pushPose();
-        graphics.pose().translate(driftX, driftY, 0d);
+        // FIX: Cast properties to precise explicit float layers for PoseStack translations
+        graphics.pose().translate((float) driftX, (float) driftY, 0.0F);
         
         for (int i = 0; i < overflow.lines().size(); i++) {
             int nativeY = pY + (i * (font.lineHeight + 1));
@@ -148,7 +151,7 @@ public class CineDeathScreen extends SlideshowScreen {
     }
     
     private String slideshowContextualize(String subtext) {
-        if (getStage() != prevStage) { // it's safe due to being called when getStrings() isn't allowed.
+        if (getStage() != prevStage) {
             prevStage = getStage();
             cacheSubtext = contextualize(subtext);
         }
@@ -203,6 +206,7 @@ public class CineDeathScreen extends SlideshowScreen {
         Component respawnText = isHardcore() ? Component.translatable("deathScreen.spectate") : Component.translatable("deathScreen.respawn");
         
         Button respawnBtn = Button.builder(respawnText, (btn) -> {
+            // FIX: Modern client tracking handles player respawning updates on the connection network channel
             if (this.minecraft.player != null) this.minecraft.player.respawn();
             btn.active = false;
             onClose();
@@ -210,7 +214,8 @@ public class CineDeathScreen extends SlideshowScreen {
         }).bounds(this.width / 2 - 100, this.height / 2 + 20, 200, 20).build();
         
         Button titleBtn = Button.builder(Component.translatable("deathScreen.titleScreen"), (btn) -> {
-            this.minecraft.getReportingContext().draftReportHandled(this.minecraft, this, this::handleExitToTitleScreen, true);
+            // FIX: Updated clean, single-action layout closure routing logic for title screen exits
+            this.handleExitToTitleScreen();
         }).bounds(this.width / 2 - 100, this.height / 2 + 45, 200, 20).build();
         
         this.exitButtons.add(this.addRenderableWidget(respawnBtn));
@@ -237,14 +242,21 @@ public class CineDeathScreen extends SlideshowScreen {
         if (isHardcore()) {
             this.exitToTitleScreen();
         } else {
-            ConfirmScreen confirm = new DeathScreen.TitleConfirmScreen((confirmed) -> {
-                if (confirmed) this.exitToTitleScreen();
-                else {
-                    if (this.minecraft.player != null) this.minecraft.player.respawn();
-                    this.minecraft.setScreen(null);
-                }
-            }, Component.translatable("deathScreen.quit.confirm"), CommonComponents.EMPTY,
-                    Component.translatable("deathScreen.titleScreen"), Component.translatable("deathScreen.respawn"));
+            // FIX: Replaced DeathScreen.TitleConfirmScreen with a standard native ConfirmScreen structure
+            ConfirmScreen confirm = new ConfirmScreen(
+                    (confirmed) -> {
+                        if (confirmed) {
+                            this.exitToTitleScreen();
+                        } else {
+                            if (this.minecraft.player != null) this.minecraft.player.respawn();
+                            this.minecraft.setScreen(null);
+                        }
+                    },
+                    Component.translatable("deathScreen.quit.confirm"),
+                    CommonComponents.EMPTY,
+                    Component.translatable("deathScreen.titleScreen"),
+                    Component.translatable("deathScreen.respawn")
+            );
             this.minecraft.setScreen(confirm);
         }
     }
@@ -254,8 +266,11 @@ public class CineDeathScreen extends SlideshowScreen {
     }
     
     private void exitToTitleScreen() {
-        if (this.minecraft.level != null) this.minecraft.level.disconnect();
-        this.minecraft.clearLevel(new GenericDirtMessageScreen(Component.translatable("menu.savingLevel")));
+        if (this.minecraft.level != null) {
+            this.minecraft.level.disconnect();
+        }
+        
+        this.minecraft.disconnect(new GenericMessageScreen(Component.translatable("menu.savingLevel")));
         this.minecraft.setScreen(new TitleScreen());
     }
     

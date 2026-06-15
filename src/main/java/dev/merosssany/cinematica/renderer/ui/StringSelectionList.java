@@ -8,10 +8,8 @@ import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.network.chat.Component;
 
 public class StringSelectionList extends ObjectSelectionList<StringSelectionList.StringEntry> {
-    public StringSelectionList(Minecraft minecraft, int width, int height, int top, int bottom, int itemHeight) {
-        super(minecraft, width, height, top, bottom, itemHeight);
-        super.setRenderBackground(false);
-        super.setRenderTopAndBottom(false);
+    public StringSelectionList(Minecraft p_94442_, int p_94443_, int p_94444_, int p_94445_, int p_94446_) {
+        super(p_94442_, p_94443_, p_94444_, p_94445_, p_94446_);
     }
     
     public void addString(String message, RGBA baseColor, int id) {
@@ -29,9 +27,6 @@ public class StringSelectionList extends ObjectSelectionList<StringSelectionList
         if (entry == null) return -1;
         else return entry.id;
     }
-    
-    @Override
-    public void setRenderBackground(boolean pRenderBackground) {}
     
     protected static class StringEntry extends Entry<StringEntry> {
         private final Component text;

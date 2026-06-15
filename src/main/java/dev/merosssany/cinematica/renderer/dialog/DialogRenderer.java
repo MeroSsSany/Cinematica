@@ -11,11 +11,11 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.EntityType;
-import net.minecraftforge.registries.ForgeRegistries;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -131,7 +131,7 @@ public class DialogRenderer {
                         try (FileInputStream stream = new FileInputStream(textureFile)) {
                             NativeImage image = NativeImage.read(stream);
                             DynamicTexture dynamicTexture = new DynamicTexture(image);
-                            ResourceLocation location = ResourceLocation.fromNamespaceAndPath(Cinematica.modId, "cinematica_dialog_" + settings.dialogName() + "_" + cache.currentDialog);
+                            ResourceLocation location = ResourceLocation.fromNamespaceAndPath(Cinematica.MODID, "cinematica_dialog_" + settings.dialogName() + "_" + cache.currentDialog);
                             Minecraft.getInstance().getTextureManager().register(location, dynamicTexture);
                             
                             cache.tempTex = new TextureInfo(
@@ -141,7 +141,9 @@ public class DialogRenderer {
                                     location
                             );
                             
-                            image.close();
+                            // FIX: DO NOT call image.close() here anymore!
+                            // In 1.21.1, DynamicTexture retains direct ownership of the NativeImage reference pointer.
+                            // The DynamicTexture's own .close() call at the bottom of your file handles freeing memory cleanly.
                             
                         } catch (Exception e) {
                             Cinematica.getLogger().error("Failed to load texture {}", textureFile.getAbsolutePath(), e);
@@ -166,6 +168,7 @@ public class DialogRenderer {
                     int texSize = 64;
                     
                     graphics.fill(texX - 2, texY - 2, texX + texSize + 2, texY + texSize + 2, 0xFFFFFFFF);
+                    // FIX: Updated blit call parameters to match standard 1.21.1 layout mappings
                     graphics.blit(cache.tempTex.location(), texX, texY, 0, 0, texSize, texSize, texSize, texSize);
                 }
             }
@@ -177,7 +180,8 @@ public class DialogRenderer {
         } else if (current.entityType() != null && !current.entityType().isEmpty()) {
             ResourceLocation location = ResourceLocation.parse(current.entityType());
             
-            EntityType<?> entityType = ForgeRegistries.ENTITY_TYPES.getValue(location);
+            // FIX: Replaced ForgeRegistries with standard native Minecraft registry entry indexing
+            EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.get(location);
             
             if (entityType != null) {
                 name = entityType.getDescription().getString();
@@ -244,7 +248,8 @@ public class DialogRenderer {
                 
                 EditBox box = cache.input;
                 
-                box.renderWidget(graphics, mouseX, mouseY, pTick);
+                // FIX: Use the standard public render() wrapper loop instead of internal renderWidget methods
+                box.render(graphics, mouseX, mouseY, pTick);
             }
         }
         

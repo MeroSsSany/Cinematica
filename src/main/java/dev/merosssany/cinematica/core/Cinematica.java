@@ -12,8 +12,13 @@ import dev.merosssany.cinematica.core.registry.settings.SlideshowRegistry;
 import dev.merosssany.cinematica.core.security.ObjectKey;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSlide;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.Sound;
+import net.minecraft.client.sounds.WeighedSoundEvents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.util.RandomSource;
 import org.slf4j.Logger;
 
 import java.io.*;
@@ -25,7 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import static dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings.getGson;
 
 public final class Cinematica {
-    public static final String modId = "cinematica";
+    public static final String MODID = "cinematica";
     public static final String SCROLLING_TEXT = "scrolling_text";
     public static final String DEATH_SCREEN = "death_screen";
     public static final String SLIDESHOWS = "slideshows";
@@ -54,19 +59,55 @@ public final class Cinematica {
         creditScreenRegistry = new CreditScreenRegistry(lock);
     }
     
+    public static InputStream getRawAudioStream(String soundId) throws Exception {
+        ResourceLocation location = ResourceLocation.parse(soundId);
+        
+        // 1. Get the Event from the registry
+        SoundEvent event = BuiltInRegistries.SOUND_EVENT.get(location);
+        if (event == null) throw new Exception("SoundEvent not found: " + soundId);
+        
+        // 2. Resolve the weighted events
+        // This is the part that actually uses the getSound() method internally
+        WeighedSoundEvents weighedEvents = Minecraft.getInstance().getSoundManager().getSoundEvent(location);
+        if (weighedEvents == null) throw new Exception("No sound events defined for: " + soundId);
+        
+        // 3. Perform the weighted selection using a random source
+        Sound selectedSound = weighedEvents.getSound(RandomSource.create());
+        
+        // 4. Construct the precise file location
+        // Note: The selectedSound.getLocation() returns the internal ID,
+        // which needs the 'sounds/' prefix and '.ogg' suffix for file loading
+        ResourceLocation fileLoc = ResourceLocation.fromNamespaceAndPath(
+                selectedSound.getLocation().getNamespace(),
+                "sounds/" + selectedSound.getLocation().getPath() + ".ogg"
+        );
+        
+        // 5. Open the stream
+        Optional<Resource> resource = Minecraft.getInstance().getResourceManager().getResource(fileLoc);
+        if (resource.isPresent()) return resource.get().open();
+        
+        throw new Exception("File not found at: " + fileLoc);
+    }
+    
     public static InputStream getAsset(String path, Path root) throws IOException {
         // A path is a resource if root is null OR if it explicitly contains a colon character ':'
         boolean isResource = root == null || path.contains(":");
         
         if (isResource) {
+            
             // Safe conversion step: handle cases where a colon may be missing for raw pack items
-            ResourceLocation location = path.contains(":") ? ResourceLocation.parse(path) : ResourceLocation.fromNamespaceAndPath(modId, path);
+            ResourceLocation location = path.contains(":") ? ResourceLocation.parse(path) : ResourceLocation.fromNamespaceAndPath(MODID, path);
             Optional<Resource> optional = Minecraft.getInstance().getResourceManager().getResource(location);
             
             if (optional.isPresent()) {
                 return optional.get().open();
+            } else {
+                try {
+                    return getRawAudioStream(path);
+                } catch (Exception e) {
+                    throw new IOException("Couldn't find ResourceLocation inside pack resources: " + location, e);
+                }
             }
-            throw new FileNotFoundException("Couldn't find ResourceLocation inside pack resources: " + location);
             
         } else {
             return new FileInputStream(root.resolve(path).toFile());

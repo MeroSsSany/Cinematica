@@ -52,7 +52,7 @@ public class ScenesScreen extends Screen {
         
         public Slideshow(Minecraft minecraft, int width, int height, int top, int bottom) {
             this.minecraft = minecraft;
-            list = new StringSelectionList(minecraft, width, height, top, bottom, 40);
+            list = new StringSelectionList(minecraft, width, height, top, bottom);
             
             Set<String> slideshows = Cinematica.getSlideshows();
             List<String> sorted = new ArrayList<>(List.copyOf(slideshows));
@@ -71,7 +71,7 @@ public class ScenesScreen extends Screen {
         
         @Override
         public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-            return list.mouseScrolled(mouseX, mouseY, scrollY);
+            return list.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
         }
         
         @Override

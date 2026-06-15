@@ -1,15 +1,17 @@
 pluginManagement {
     repositories {
         gradlePluginPortal()
+        // FIX: Replace the old Forge maven with NeoForge's official plugin channel
         maven {
-            name = 'MinecraftForge'
-            url = 'https://maven.minecraftforge.net/'
+            name = 'NeoForge'
+            url = 'https://maven.neoforged.net/releases'
         }
     }
 }
 
 plugins {
-    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.7.0'
+    // Keeps toolchain auto-downloads working smoothly for Java 21
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.8.0'
 }
 
 rootProject.name = 'Cinematica'

@@ -1,0 +1,32 @@
+# Global properties (Must stay at the very top of the file)
+modLoader = "javafml" #mandatory
+loaderVersion = "[4,)" #mandatory
+license = "GNU LGPL v3.0" #mandatory
+
+[[jarJar.rule]]
+spec = "jlayer"
+versionRange = "[1.0.1,)"
+
+# Mod properties block
+[[mods]] #mandatory
+modId = "cinematica" #mandatory (Must be lowercase, matching your @Mod annotation)
+version = "1.0.0" #mandatory
+displayName = "Cinematica" #mandatory
+authors = "Merosssany" #optional
+description = '''A cinematic camera and animation tool for Minecraft.''' #mandatory
+
+# Dependency 1: NeoForge framework
+[[dependencies.cinematica]]
+modId = "neoforge"
+mandatory = true
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+# Dependency 2: Vanilla Minecraft Game
+[[dependencies.cinematica]]
+modId = "minecraft"
+mandatory = true
+versionRange = "[1.21.1]"
+ordering = "NONE"
+side = "BOTH"

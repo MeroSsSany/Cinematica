@@ -12,8 +12,8 @@ import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.resources.ResourceLocation;
 
 public class CinematicaHeader implements Renderable, NarratableEntry, GuiEventListener {
-    public static final ResourceLocation CINEMATICA_DARK = ResourceLocation.fromNamespaceAndPath(Cinematica.modId, "textures/icon_dark.png");
-    public static final ResourceLocation CINEMATICA = ResourceLocation.fromNamespaceAndPath(Cinematica.modId, "textures/icon.png");
+    public static final ResourceLocation CINEMATICA_DARK = ResourceLocation.fromNamespaceAndPath(Cinematica.MODID, "textures/icon_dark.png");
+    public static final ResourceLocation CINEMATICA = ResourceLocation.fromNamespaceAndPath(Cinematica.MODID, "textures/icon.png");
     
     protected final Font font;
     protected final RGBA color;

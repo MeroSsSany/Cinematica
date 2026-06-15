@@ -1,60 +1,47 @@
 package dev.merosssany.cinematica.networking;
 
 import dev.merosssany.cinematica.core.Cinematica;
-import dev.merosssany.cinematica.networking.packet.OpenConfig;
 import dev.merosssany.cinematica.networking.packet.OpenSlideshowPacket;
-import dev.merosssany.cinematica.networking.packet.SelectedScenePacket;
 import dev.merosssany.cinematica.networking.packet.SyncDeathContextPacket;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.network.NetworkDirection;
-import net.minecraftforge.network.NetworkRegistry;
-import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.simple.SimpleChannel;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
+@EventBusSubscriber(modid = Cinematica.MODID, bus = EventBusSubscriber.Bus.MOD)
 public class NetworkManager {
-    private static SimpleChannel INSTANCE;
-    private static int packetId = 0;
-    private static int id() { return packetId++; }
     
-    public static void register() {
-        INSTANCE = NetworkRegistry.ChannelBuilder
-                .named(ResourceLocation.fromNamespaceAndPath(Cinematica.modId, "messages"))
-                .networkProtocolVersion(() -> "1.0")
-                .clientAcceptedVersions(s -> true)
-                .serverAcceptedVersions(s -> true)
-                .simpleChannel();
+    @SubscribeEvent
+    public static void register(RegisterPayloadHandlersEvent event) {
+        final PayloadRegistrar registrar = event.registrar("1.0");
         
-        INSTANCE.messageBuilder(OpenSlideshowPacket.class, id(), NetworkDirection.PLAY_TO_CLIENT)
-                .encoder(OpenSlideshowPacket::encode)
-                .decoder(OpenSlideshowPacket::new)
-                .consumerMainThread(OpenSlideshowPacket::handle)
-                .add();
+        registrar.playToClient(
+                OpenSlideshowPacket.TYPE,
+                OpenSlideshowPacket.STREAM_CODEC,
+                OpenSlideshowPacket::handle
+        );
         
-        INSTANCE.messageBuilder(SelectedScenePacket.class, id(), NetworkDirection.PLAY_TO_CLIENT)
-                .encoder(SelectedScenePacket::encode)
-                .decoder(SelectedScenePacket::new)
-                .consumerMainThread(SelectedScenePacket::handle)
-                .add();
-        
-        INSTANCE.messageBuilder(SyncDeathContextPacket.class, id(), NetworkDirection.PLAY_TO_CLIENT)
-                .encoder(SyncDeathContextPacket::encode)
-                .decoder(SyncDeathContextPacket::new)
-                .consumerMainThread(SyncDeathContextPacket::handle)
-                .add();
-        
-        INSTANCE.messageBuilder(OpenConfig.class, id(), NetworkDirection.PLAY_TO_CLIENT)
-                .encoder(OpenConfig::encode)
-                .decoder(OpenConfig::new)
-                .consumerMainThread(OpenConfig::handle)
-                .add();
+        registrar.playToClient(
+                SyncDeathContextPacket.TYPE,
+                SyncDeathContextPacket.STREAM_CODEC,
+                SyncDeathContextPacket::handle
+        );
     }
     
-    public static <MSG> void sendToServer(MSG msg) {
-        INSTANCE.sendToServer(msg);
+    /**
+     * Sends a packet from the Client up to the Server.
+     */
+    public static void sendToServer(CustomPacketPayload packet) {
+        PacketDistributor.sendToServer(packet);
     }
     
-    public static <MSG> void sendToPlayer(ServerPlayer player, MSG packet) {
-        INSTANCE.send(PacketDistributor.PLAYER.with(() -> player), packet);
+    /**
+     * Sends a packet from the Server down to a specific target player.
+     */
+    public static void sendToPlayer(ServerPlayer player, CustomPacketPayload packet) {
+        PacketDistributor.sendToPlayer(player, packet);
     }
 }

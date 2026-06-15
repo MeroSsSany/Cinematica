@@ -5,25 +5,36 @@ import net.minecraft.commands.synchronization.ArgumentTypeInfo;
 import net.minecraft.commands.synchronization.ArgumentTypeInfos;
 import net.minecraft.commands.synchronization.SingletonArgumentInfo;
 import net.minecraft.core.registries.Registries;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.registries.DeferredHolder;
+import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.neoforge.registries.RegisterEvent;
 
 public class ModArgumentTypes {
-    public static final DeferredRegister<ArgumentTypeInfo<?, ?>> ARGUMENT_TYPES = 
-            DeferredRegister.create(Registries.COMMAND_ARGUMENT_TYPE, Cinematica.modId);
-
-    public static final RegistryObject<SingletonArgumentInfo<SlideshowCommandType>> SLIDESHOW_TYPE =
+    // The base register handles command argument tracking pools
+    public static final DeferredRegister<ArgumentTypeInfo<?, ?>> ARGUMENT_TYPES =
+            DeferredRegister.create(Registries.COMMAND_ARGUMENT_TYPE, Cinematica.MODID);
+    
+    public static final DeferredHolder<ArgumentTypeInfo<?, ?>, SingletonArgumentInfo<SlideshowCommandType>> SLIDESHOW_TYPE =
             ARGUMENT_TYPES.register("slideshow", () ->
-                ArgumentTypeInfos.registerByClass(SlideshowCommandType.class, SingletonArgumentInfo.contextFree(SlideshowCommandType::new))
+                    SingletonArgumentInfo.contextFree(SlideshowCommandType::new)
             );
     
-    public static final RegistryObject<SingletonArgumentInfo<DeathScreenCommandType>> DEATH_SCREEN_TYPE =
+    public static final DeferredHolder<ArgumentTypeInfo<?, ?>, SingletonArgumentInfo<DeathScreenCommandType>> DEATH_SCREEN_TYPE =
             ARGUMENT_TYPES.register("cine_death_screen", () ->
-                    ArgumentTypeInfos.registerByClass(DeathScreenCommandType.class, SingletonArgumentInfo.contextFree(DeathScreenCommandType::new))
+                    SingletonArgumentInfo.contextFree(DeathScreenCommandType::new)
             );
     
     public static void register(IEventBus bus) {
         ARGUMENT_TYPES.register(bus);
+        // Register the class mapping when the registry event fires
+        bus.addListener(ModArgumentTypes::registerTypeInfo);
+    }
+    
+    private static void registerTypeInfo(RegisterEvent event) {
+        event.register(Registries.COMMAND_ARGUMENT_TYPE, helper -> {
+            ArgumentTypeInfos.registerByClass(SlideshowCommandType.class, SLIDESHOW_TYPE.get());
+            ArgumentTypeInfos.registerByClass(DeathScreenCommandType.class, DEATH_SCREEN_TYPE.get());
+        });
     }
 }

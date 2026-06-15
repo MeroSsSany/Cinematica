@@ -99,11 +99,6 @@ public class TabManager extends AbstractWidget {
     }
     
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
-        return mouseScrolled(mouseX, mouseY, 0, delta);
-    }
-    
-    @Override
     protected void updateWidgetNarration(NarrationElementOutput pNarrationElementOutput) {}
     
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {

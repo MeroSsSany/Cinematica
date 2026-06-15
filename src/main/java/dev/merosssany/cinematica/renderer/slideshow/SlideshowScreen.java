@@ -102,6 +102,12 @@ public class SlideshowScreen extends Screen {
     
     @Override
     public void render(GuiGraphics graphics, int mx, int my, float pTick) {
+        SoundManager soundManager = Minecraft.getInstance().getSoundManager();
+        if (settings.stopAudio()) {
+            soundManager.stop();
+        } else {
+            soundManager.stop(null, SoundSource.MUSIC);
+        }
         shouldRender = !ClientCameraMemory.render;
         if (timeOnFirstRender == 0) timeOnFirstRender = glfwGetTime();
         
@@ -377,7 +383,7 @@ public class SlideshowScreen extends Screen {
             float imgW = image.getWidth();
             float imgH = image.getHeight();
             
-            ResourceLocation location = ResourceLocation.fromNamespaceAndPath(Cinematica.modId, locationName + "_" + stage);
+            ResourceLocation location = ResourceLocation.fromNamespaceAndPath(Cinematica.MODID, locationName + "_" + stage);
             Minecraft.getInstance().getTextureManager().register(location, tex);
             return new TextureInfo(imgW, imgH, tex, location);
         }

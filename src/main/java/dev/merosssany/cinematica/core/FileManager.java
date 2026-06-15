@@ -1,6 +1,6 @@
 package dev.merosssany.cinematica.core;
 
-import net.minecraftforge.fml.loading.FMLPaths;
+import net.neoforged.fml.loading.FMLPaths;
 
 import java.io.File;
 import java.io.FilenameFilter;
