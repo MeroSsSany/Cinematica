@@ -1,8 +1,9 @@
 package dev.merosssany.cinematica.renderer.slideshow;
 
-import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.core.data.RGBA;
 import dev.merosssany.cinematica.core.data.death.DeathScreenContext;
+import dev.merosssany.cinematica.core.data.loader.CinematicaProjectLoader;
+import dev.merosssany.cinematica.core.data.loader.assets.SlideshowLoader;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSlide;
 import dev.merosssany.cinematica.renderer.FadeState;
 import dev.merosssany.cinematica.renderer.OverflowData;
@@ -48,8 +49,7 @@ public class CineDeathScreen extends SlideshowScreen {
     private OverflowData overflow;
     
     public CineDeathScreen(DeathScreenContext context) {
-        // FIX: Ensure matching MODID identifier reference syntax mappings
-        super(Cinematica.getSlideshow(context.settings().name()));
+        super(CinematicaProjectLoader.get(context.settings().name(), SlideshowLoader.class));
         this.context = context;
         
         setFadeState(FadeState.FADE_FROM_BLACK);

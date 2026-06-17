@@ -2,6 +2,7 @@ package dev.merosssany.cinematica.core.registry;
 
 import dev.merosssany.cinematica.core.security.ObjectKey;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 
@@ -44,5 +45,9 @@ public class CinematicaRegistry<KEY, VALUE> {
     
     public Set<KEY> getRegistered() {
         return entries.keySet();
+    }
+    
+    public Collection<Map.Entry<KEY,VALUE>> getEntries() {
+        return entries.entrySet();
     }
 }

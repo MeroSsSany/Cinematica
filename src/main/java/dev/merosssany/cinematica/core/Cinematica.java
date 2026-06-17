@@ -1,16 +1,15 @@
 package dev.merosssany.cinematica.core;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.google.gson.GsonBuilder;
 import com.mojang.logging.LogUtils;
-import dev.merosssany.cinematica.core.data.death.DeathScreenSettings;
-import dev.merosssany.cinematica.core.data.scrollingtext.CreditsSettings;
-import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
-import dev.merosssany.cinematica.core.registry.settings.CreditScreenRegistry;
-import dev.merosssany.cinematica.core.registry.settings.DeathScreenRegistry;
-import dev.merosssany.cinematica.core.registry.settings.SlideshowRegistry;
+import dev.merosssany.cinematica.core.data.RGBA;
+import dev.merosssany.cinematica.core.data.handler.*;
+import dev.merosssany.cinematica.core.data.loader.CinematicaProjectLoader;
+import dev.merosssany.cinematica.core.data.loader.assets.CreditsLoader;
+import dev.merosssany.cinematica.core.data.loader.assets.DeathScreenLoader;
+import dev.merosssany.cinematica.core.data.loader.assets.DialogLoader;
+import dev.merosssany.cinematica.core.data.loader.assets.SlideshowLoader;
 import dev.merosssany.cinematica.core.security.ObjectKey;
-import dev.merosssany.cinematica.core.data.slideshow.SlideshowSlide;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.Sound;
 import net.minecraft.client.sounds.WeighedSoundEvents;
@@ -19,70 +18,51 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.util.RandomSource;
+import org.jetbrains.annotations.NotNull;
+import org.joml.Vector2f;
+import org.joml.Vector2i;
+import org.joml.Vector3d;
+import org.joml.Vector3i;
 import org.slf4j.Logger;
 
 import java.io.*;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-
-import static dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings.getGson;
 
 public final class Cinematica {
     public static final String MODID = "cinematica";
-    public static final String SCROLLING_TEXT = "scrolling_text";
-    public static final String DEATH_SCREEN = "death_screen";
-    public static final String SLIDESHOWS = "slideshows";
-    
-    private static final Map<SlideshowSettings, Path> slideshowRoots = new ConcurrentHashMap<>();
     private static final Logger logger = LogUtils.getLogger();
-    private static ObjectKey lock;
-    private static boolean frozen;
-    
-    private static SlideshowRegistry slideshowRegistry;
-    private static DeathScreenRegistry deathScreenRegistry;
-    private static CreditScreenRegistry creditScreenRegistry;
     public static boolean debug;
+    private static ObjectKey key;
     
-    public static void init(ObjectKey lock) {
-        if (lock == null) {
-            throw new IllegalArgumentException("ObjectKey cannot be null");
-        }
-        if (Cinematica.lock != null) {
-            throw new IllegalStateException("Cinematica is already initialized!");
-        }
+    public static void init(ObjectKey key) {
+        if (Cinematica.key != null) return;
+        Cinematica.key = key;
+        SlideshowLoader slideshow = new SlideshowLoader(key);
+        DeathScreenLoader deathScreen = new DeathScreenLoader(key);
+        CreditsLoader credits = new CreditsLoader(key);
+        DialogLoader dialog = new DialogLoader(key);
         
-        Cinematica.lock = lock;
-        slideshowRegistry = new SlideshowRegistry(lock);
-        deathScreenRegistry = new DeathScreenRegistry(lock);
-        creditScreenRegistry = new CreditScreenRegistry(lock);
+        CinematicaProjectLoader.register("slideshows", slideshow);
+        CinematicaProjectLoader.register("death_screens", deathScreen);
+        CinematicaProjectLoader.register("credits", credits);
+        CinematicaProjectLoader.register("dialogs", dialog);
     }
     
     public static InputStream getRawAudioStream(String soundId) throws Exception {
         ResourceLocation location = ResourceLocation.parse(soundId);
-        
-        // 1. Get the Event from the registry
         SoundEvent event = BuiltInRegistries.SOUND_EVENT.get(location);
         if (event == null) throw new Exception("SoundEvent not found: " + soundId);
         
-        // 2. Resolve the weighted events
-        // This is the part that actually uses the getSound() method internally
         WeighedSoundEvents weighedEvents = Minecraft.getInstance().getSoundManager().getSoundEvent(location);
         if (weighedEvents == null) throw new Exception("No sound events defined for: " + soundId);
         
-        // 3. Perform the weighted selection using a random source
         Sound selectedSound = weighedEvents.getSound(RandomSource.create());
-        
-        // 4. Construct the precise file location
-        // Note: The selectedSound.getLocation() returns the internal ID,
-        // which needs the 'sounds/' prefix and '.ogg' suffix for file loading
         ResourceLocation fileLoc = ResourceLocation.fromNamespaceAndPath(
                 selectedSound.getLocation().getNamespace(),
                 "sounds/" + selectedSound.getLocation().getPath() + ".ogg"
         );
         
-        // 5. Open the stream
         Optional<Resource> resource = Minecraft.getInstance().getResourceManager().getResource(fileLoc);
         if (resource.isPresent()) return resource.get().open();
         
@@ -114,225 +94,27 @@ public final class Cinematica {
         }
     }
     
-    public static void register(SlideshowSettings settings, Path root) throws InvalidJsonException {
-        if (frozen) {
-            throw new IllegalStateException("Cinematica is frozen!");
-        }
-        
-        // Validate background audio loop asset track context gracefully
-        if (settings.musicPath() != null && !settings.musicPath().isEmpty()) {
-            try (InputStream is = getAsset(settings.musicPath(), root)) {
-                // File stream exists and opened successfully
-            } catch (IOException e) {
-                logger.error("Couldn't access music file context located at: {}", settings.musicPath(), e);
-            }
-        }
-        
-        SlideshowSlide[] slides = settings.slides();
-        if (slides == null) throw new InvalidJsonException("There are no slides to register");
-        
-        for (SlideshowSlide slide : slides) {
-            try (InputStream is = getAsset(slide.assetPath(), root)) {
-                // File stream exists and opened successfully
-            } catch (IOException e) {
-                logger.error("Couldn't access image/render sequence slice asset element at: {}", slide.assetPath(), e);
-            }
-        }
-        
-        slideshowRegistry.register(settings);
-        if (root != null) {
-            slideshowRoots.put(settings, root);
-        }
-        logger.info("Registered slideshow \"{}\" successfully", settings.name());
-    }
-    
-    public static SlideshowSettings getSlideshow(String name) {
-        return slideshowRegistry.get(name);
-    }
-    
-    public static void beginReload(ObjectKey key) {
-        if (key != lock) throw new SecurityException();
-        frozen = false;
-        clear(key);
-    }
-    
-    public static void clear(ObjectKey key) {
-        slideshowRegistry.clear(key);
-        creditScreenRegistry.clear(key);
-        deathScreenRegistry.clear(key);
-    }
-    
-    public static void freeze(ObjectKey key, boolean frozen) {
-        slideshowRegistry.setFrozen(frozen, key);
-        creditScreenRegistry.setFrozen(frozen, key);
-        deathScreenRegistry.setFrozen(frozen, key);
-    }
-    
-    public static boolean SlideshowExists(String name) {
-        return slideshowRegistry.isRegistered(name);
-    }
-    
-    public static LoadDetail[] reloadAll(ObjectKey key) throws IOException {
-        beginReload(key);
-        
-        Path cinematica = FileManager.getCinematicaFolder();
-        
-        if (Files.isDirectory(cinematica)) {
-            File[] files = new File(cinematica.toUri()).listFiles();
-            
-            if (files == null) return null;
-            
-            LoadDetail[] details = new LoadDetail[files.length];
-            
-            for (int i = 0; i < files.length; i++) {
-                File file = files[i];
-                
-                if (file.isDirectory()) {
-                    try {
-                        details[i] = new LoadDetail(
-                                file.toPath(),
-                                load(file.toPath()) + " has been loaded successfully.",
-                                false
-                        );
-                        
-                    } catch (Exception e) {
-                        Cinematica.logger.error("Failed to load cinematic at {}", file.toPath(), e);
-                        details[i] = new LoadDetail(file.toPath(), e.getMessage(), true);
-                    }
-                }
-            }
-            
-            return details;
-        }
-        return null;
-    }
-    
-    public static String load(Path root) throws IOException, InvalidJsonException {
-        if (frozen) throw new IllegalStateException("Cinematica is frozen!");
-        
-        Path metadata = root.resolve("cinematica.json");
-        
-        JsonObject metadataJson;
-        try (FileReader reader = new FileReader(metadata.toFile())) {
-            metadataJson = JsonParser.parseReader(reader).getAsJsonObject();
-        }
-        
-        if (!metadataJson.has("version"))
-            throw new InvalidJsonException("Couldn't find property \"version\". This property is mandatory.");
-        if (!metadataJson.has("folders"))
-            throw new InvalidJsonException("Couldn't find property \"folders\". This property is mandatory.");
-        
-        JsonObject folders = metadataJson.get("folders").getAsJsonObject();
-        
-        loadSlideshows(root, folders);
-        loadCreditScreens(root, folders);
-        loadDeathScreens(root, folders);
-        
-        return root.toFile().getName();
-    }
-    
-    private static void loadDeathScreens(Path root, JsonObject folders) throws IOException {
-        if (folders.has(DEATH_SCREEN)) {
-            String deathScreen = folders.get(DEATH_SCREEN).getAsString();
-            File folder = root.resolve(deathScreen).toFile();
-            
-            if (folder.isDirectory()) {
-                File[] files = folder.listFiles();
-                if (files == null) return;
-                
-                for (File file : files) {
-                    JsonObject j;
-                    try (FileReader reader = new FileReader(file)) {
-                        if (!file.getName().endsWith(".json")) continue;
-                        j = JsonParser.parseReader(reader).getAsJsonObject();
-                    }
-                    
-                    if (j.has("name")) {
-                        String name = j.get("name").getAsString();
-                        
-                        if (slideshowRegistry.isRegistered(name)) {
-                            deathScreenRegistry.register(getGson().fromJson(j, DeathScreenSettings.class));
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    private static void loadCreditScreens(Path root, JsonObject folders) throws InvalidJsonException, IOException {
-        if (folders.has(SCROLLING_TEXT)) {
-            String scrollingText = folders.get(SCROLLING_TEXT).getAsString();
-            Path scrollingTextFolder = root.resolve(scrollingText);
-            File scrollingTextFile = scrollingTextFolder.toFile();
-            if (!scrollingTextFile.isDirectory())
-                throw new InvalidJsonException("\"" + scrollingText + "\" must be a folder.");
-            File[] files = scrollingTextFile.listFiles();
-            if (files == null) return; // This shouldn't happen
-            
-            for (File file : files) {
-                JsonObject j;
-                try (FileReader reader = new FileReader(file)) {
-                    if (!file.getName().endsWith(".json")) continue;
-                    j = JsonParser.parseReader(reader).getAsJsonObject();
-                }
-                
-                if (CreditsSettings.isValid(j)) {
-                    creditScreenRegistry.register(CreditsSettings.fromJson(j));
-                } else logger.warn("Invalid credit screen: {}", file.getName());
-            }
-        }
-    }
-    
-    private static void loadSlideshows(Path root, JsonObject folders) throws InvalidJsonException, IOException {
-        if (folders.has(SLIDESHOWS)) {
-            // Load the slideshow
-            String slideshowsFolderName = folders.get(SLIDESHOWS).getAsString();
-            Path slideshows = root.resolve(slideshowsFolderName);
-            File slideshowsFile = slideshows.toFile();
-            
-            if (!slideshowsFile.isDirectory())
-                throw new InvalidJsonException("\"" + slideshowsFolderName + "\" must be a folder.");
-            File[] slideshowSettings = slideshowsFile.listFiles();
-            
-            if (slideshowSettings == null) return;
-            
-            for (File file : slideshowSettings) {
-                JsonObject j;
-                
-                try (FileReader reader = new FileReader(file)) {
-                    if (!file.getName().endsWith(".json")) continue;
-                    j = JsonParser.parseReader(reader).getAsJsonObject();
-                }
-                
-                register(SlideshowSettings.fromJson(j), root);
-            }
-        }
+    public static @NotNull GsonBuilder getGsonBuilder() {
+        return new GsonBuilder()
+                .registerTypeAdapter(Vector2i.class, new Vector2iAdapter())
+                .registerTypeAdapter(Vector2f.class, new Vector2fAdapter())
+                .registerTypeAdapter(Vector3d.class, new Vector3dAdapter())
+                .registerTypeAdapter(RGBA.class, new RgbaAdaptor())
+                .registerTypeAdapter(File.class, new FileAdapter())
+                .registerTypeAdapter(Vector3i.class, new Vector3iAdapter())
+                .setPrettyPrinting();
     }
     
     public static Logger getLogger() {
         return logger;
     }
     
-    public static Set<String> getSlideshows() {
-        return slideshowRegistry.getRegistered();
-    }
-    
     public static String formalize(String name) {
         return name.toLowerCase().replaceAll("[^a-z0-9_\\-\\s]", "").replace(" ","_");
     }
     
-    public static Path getRoot(SlideshowSettings settings) {
-        return slideshowRoots.get(settings);
-    }
-    
-    public static DeathScreenRegistry deathScreenRegistry() {
-        return deathScreenRegistry;
-    }
-    
-    public static CreditScreenRegistry creditScreenRegistry() {
-        return creditScreenRegistry;
-    }
-    
-    public record LoadDetail(Path path, String msg, boolean failure) {
+    public static void reloadAll(ObjectKey key) throws IOException {
+        if (Cinematica.key == key) CinematicaProjectLoader.reload();
+        else throw new SecurityException("Incorrect Key.");
     }
 }

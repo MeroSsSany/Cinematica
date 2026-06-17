@@ -1,6 +1,7 @@
 package dev.merosssany.cinematica.core.data.scrollingtext;
 
 import com.google.gson.JsonObject;
+import dev.merosssany.cinematica.core.data.CinematicaAsset;
 
 import static dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings.getGson;
 
@@ -14,9 +15,9 @@ public record CreditsSettings(
     String music,
     String finalMessage,
     String name
-) {
+) implements CinematicaAsset {
     public static boolean isValid(JsonObject j) {
-        return j.has("text") && j.has("dialogName");
+        return j.has("text") && j.has("name");
     }
     
     public JsonObject toJson() {

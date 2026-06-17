@@ -2,12 +2,11 @@ package dev.merosssany.cinematica.core;
 
 import net.neoforged.fml.loading.FMLPaths;
 
-import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collection;
+
+import static dev.merosssany.cinematica.core.Cinematica.getLogger;
 
 public class FileManager {
 	public static Path geConfigDir() {
@@ -25,33 +24,16 @@ public class FileManager {
 		if (!musicFolder.toFile().exists()) createFolder("cinematica",game);
 	}
     
-    public static Path getCinematicaFolder() throws IOException {
-        Path musicPath = geConfigDir().resolve("cinematica");
-        if (Files.notExists(musicPath)) {
-            Files.createDirectories(musicPath);
+    public static Path getCinematicaFolder() {
+        try {
+            Path cinematica = geConfigDir().resolve("cinematica");
+            if (Files.notExists(cinematica)) {
+                Files.createDirectories(cinematica);
+            }
+            return cinematica;
+        } catch (IOException e) {
+            getLogger().error("A fatal error has occurred while retrieving config folder.",e);
+            throw new RuntimeException(e);
         }
-        return musicPath;
-    }
-    
-    public static File[] getAllFilesFrom(Path path, FilenameFilter consumer) throws IOException {
-        File folder = path.toFile();
-        if (!folder.isDirectory()) throw new IOException("Not a directory: " + path);
-        
-        return folder.listFiles(consumer);
-    }
-    public static File getRandomFileFrom(Path path, Collection<String> filter) throws IOException {
-        File[] files = getAllFilesFrom(path, (dir, name) -> {
-            int lastDot = name.lastIndexOf('.');
-            if (lastDot == -1) return false; // No extension
-            String ext = name.substring(lastDot + 1).toLowerCase();
-            return filter.contains(ext);
-        });
-        
-        if (files == null || files.length == 0) {
-            throw new IOException("No supported music files found at: " + path.toAbsolutePath());
-        }
-        
-        int index = (int) (Math.random() * files.length);
-        return files[index];
     }
 }

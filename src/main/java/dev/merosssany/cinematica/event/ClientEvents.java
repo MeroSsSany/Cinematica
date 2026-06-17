@@ -4,6 +4,9 @@ import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.core.data.ClientDeathMemory;
 import dev.merosssany.cinematica.core.data.death.DeathScreenContext;
 import dev.merosssany.cinematica.core.data.death.DeathScreenSettings;
+import dev.merosssany.cinematica.core.data.loader.CinematicaProjectLoader;
+import dev.merosssany.cinematica.core.data.loader.assets.DeathScreenLoader;
+import dev.merosssany.cinematica.core.data.loader.assets.SlideshowLoader;
 import dev.merosssany.cinematica.renderer.slideshow.CineDeathScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.DeathScreen;
@@ -24,21 +27,19 @@ public class ClientEvents {
             
             if (ClientDeathMemory.pendingSceneId != null && !ClientDeathMemory.pendingSceneId.isEmpty()) {
                 
-                if (Cinematica.SlideshowExists(ClientDeathMemory.pendingSceneId)) {
+                if (CinematicaProjectLoader.get(ClientDeathMemory.pendingSceneId, SlideshowLoader.class) != null) {
                     Minecraft mc = Minecraft.getInstance();
                     ClientLevel level = mc.level;
                     
                     if (level != null) {
-                        DeathScreenSettings settings = Cinematica.deathScreenRegistry().get(ClientDeathMemory.pendingSceneId);
+                        DeathScreenSettings settings = CinematicaProjectLoader.get(ClientDeathMemory.pendingSceneId, DeathScreenLoader.class);
                         Entity attacker = level.getEntity(ClientDeathMemory.pendingAttackerId);
                         
-                        // FIX #1: Safeguard against empty or null incoming packet death messages to prevent JVM String replace crashes
                         String deathMessage = ClientDeathMemory.message;
                         if (deathMessage == null || deathMessage.isEmpty()) {
                             deathMessage = "Fell out of the sky"; // Thematic backup fallback
                         }
                         
-                        // Cleanly redirect the graphics layer engine to our cinematic script screen
                         event.setNewScreen(new CineDeathScreen(new DeathScreenContext(settings, attacker, deathMessage)));
                     }
                 } else {

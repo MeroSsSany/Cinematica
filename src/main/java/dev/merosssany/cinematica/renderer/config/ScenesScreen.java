@@ -2,6 +2,8 @@ package dev.merosssany.cinematica.renderer.config;
 
 import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.core.data.RGBA;
+import dev.merosssany.cinematica.core.data.loader.CinematicaProjectLoader;
+import dev.merosssany.cinematica.core.data.loader.assets.SlideshowLoader;
 import dev.merosssany.cinematica.renderer.ui.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -54,7 +56,7 @@ public class ScenesScreen extends Screen {
             this.minecraft = minecraft;
             list = new StringSelectionList(minecraft, width, height, top, bottom);
             
-            Set<String> slideshows = Cinematica.getSlideshows();
+            Set<String> slideshows = CinematicaProjectLoader.getLoader(SlideshowLoader.class).getRegistered();
             List<String> sorted = new ArrayList<>(List.copyOf(slideshows));
             
             Collections.sort(sorted);

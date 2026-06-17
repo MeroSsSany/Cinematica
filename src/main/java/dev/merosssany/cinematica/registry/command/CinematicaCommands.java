@@ -90,14 +90,9 @@ public class CinematicaCommands {
     private static int refresh(CommandContext<CommandSourceStack> context) {
         try {
             context.getSource().sendSuccess(() -> Component.literal("Reloading..."), false);
-            Cinematica.LoadDetail[] details = Cinematica.reloadAll(key);
+            Cinematica.reloadAll(key);
             
-            for (Cinematica.LoadDetail detail : details) {
-                MutableComponent literal = Component.literal(detail.msg());
-                if (detail.failure()) {
-                    context.getSource().sendFailure(literal);
-                } else context.getSource().sendSuccess(() -> literal, false);
-            }
+            context.getSource().sendSuccess(() -> Component.literal("Reloaded successfully."), false);
             
         } catch (IOException e) {
             context.getSource().sendFailure(Component.literal("Failed to reload: " + e.getMessage()));

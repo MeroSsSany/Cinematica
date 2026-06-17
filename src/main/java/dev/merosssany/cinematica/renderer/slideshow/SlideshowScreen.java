@@ -2,11 +2,14 @@ package dev.merosssany.cinematica.renderer.slideshow;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import dev.merosssany.cinematica.core.Cinematica;
+import dev.merosssany.cinematica.core.FileManager;
 import dev.merosssany.cinematica.core.audio.AudioPlayer;
 import dev.merosssany.cinematica.core.audio.AudioThread;
 import dev.merosssany.cinematica.core.data.CinematicaCommandContext;
 import dev.merosssany.cinematica.core.data.CinematicaCommandParser;
 import dev.merosssany.cinematica.core.data.ClientCameraMemory;
+import dev.merosssany.cinematica.core.data.loader.CinematicaProjectLoader;
+import dev.merosssany.cinematica.core.data.loader.assets.SlideshowLoader;
 import dev.merosssany.cinematica.core.data.rendering.TextureInfo;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSlide;
@@ -59,7 +62,7 @@ public class SlideshowScreen extends Screen {
     private boolean textureLoadingAttempted = false; // Prevents spamming file I/O on failure
     
     public SlideshowScreen(SlideshowSettings settings) {
-        this(settings, Cinematica.getRoot(settings));
+        this(settings, FileManager.getCinematicaFolder());
     }
     
     public SlideshowScreen(SlideshowSettings settings, Path root) {
@@ -87,14 +90,7 @@ public class SlideshowScreen extends Screen {
         super.init();
         if (!init) {
             thread.start();
-            
-            SoundManager soundManager = Minecraft.getInstance().getSoundManager();
-            if (settings.stopAudio()) {
-                soundManager.stop();
-            } else {
-                soundManager.stop(null, SoundSource.MUSIC);
-            }
-            
+            stopSounds();
             reset();
             init = true;
         }
@@ -102,12 +98,7 @@ public class SlideshowScreen extends Screen {
     
     @Override
     public void render(GuiGraphics graphics, int mx, int my, float pTick) {
-        SoundManager soundManager = Minecraft.getInstance().getSoundManager();
-        if (settings.stopAudio()) {
-            soundManager.stop();
-        } else {
-            soundManager.stop(null, SoundSource.MUSIC);
-        }
+        stopSounds();
         shouldRender = !ClientCameraMemory.render;
         if (timeOnFirstRender == 0) timeOnFirstRender = glfwGetTime();
         
@@ -122,7 +113,7 @@ public class SlideshowScreen extends Screen {
         String subtext = currentStage.subtext();
         String title = currentStage.title();
         
-        if (fadeState == FadeState.NONE && timePassed >= currentStage.secondsToSwitch()) {
+        if (fadeState == FadeState.NONE && timePassed >= currentStage.secondsToSwitch() && shouldRender) {
             fadeState = FadeState.FADE_TO_BLACK;
             fadeProgress = 0;
         }
@@ -190,6 +181,15 @@ public class SlideshowScreen extends Screen {
             graphics.drawString(font, String.format("Fade progress: %.2f (%s)", fadeProgress, fadeState.name()), 0, font.lineHeight * 5, 0xFFFFFFFF);
             
             graphics.pose().popPose();
+        }
+    }
+    
+    protected void stopSounds() {
+        SoundManager soundManager = Minecraft.getInstance().getSoundManager();
+        if (settings.stopAudio()) {
+            soundManager.stop();
+        } else {
+            soundManager.stop(null, SoundSource.MUSIC);
         }
     }
     

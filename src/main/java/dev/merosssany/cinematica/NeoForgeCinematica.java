@@ -6,7 +6,6 @@ import com.mojang.blaze3d.platform.InputConstants;
 import dev.merosssany.cinematica.core.Cinematica;
 import dev.merosssany.cinematica.core.FileManager;
 import dev.merosssany.cinematica.core.audio.data.factory.DefaultFactories;
-import dev.merosssany.cinematica.core.data.CinematicaProjectLoader;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
 import dev.merosssany.cinematica.core.security.ObjectKey;
 import dev.merosssany.cinematica.registry.ModAttachments;
@@ -56,7 +55,6 @@ public class NeoForgeCinematica {
         modEventBus.addListener(this::onClientSetup);
         ModAttachments.register(modEventBus);
         
-        CinematicaProjectLoader.key(key);
         NeoForge.EVENT_BUS.register(this);
         
         try {

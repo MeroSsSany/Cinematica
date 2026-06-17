@@ -1,7 +1,7 @@
 package dev.merosssany.cinematica.event;
 
 import dev.merosssany.cinematica.core.Cinematica;
-import dev.merosssany.cinematica.core.data.CinematicaProjectLoader;
+import dev.merosssany.cinematica.core.data.loader.CinematicaProjectLoader;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
@@ -23,8 +23,7 @@ public class ModBusEvents {
             
             @Override
             protected void apply(Void object, ResourceManager manager, ProfilerFiller profiler) {
-                // Executes cleanly when assets initialize or when pressing F3 + T
-                CinematicaProjectLoader.reloadProjects(manager);
+                CinematicaProjectLoader.loadProjects(manager);
             }
         });
     }

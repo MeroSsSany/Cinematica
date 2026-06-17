@@ -1,15 +1,16 @@
 package dev.merosssany.cinematica.core.data.dialog;
 
 import com.google.gson.JsonObject;
+import dev.merosssany.cinematica.core.data.CinematicaAsset;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
 
 public record DialogSettings(
-        String dialogName,
+        String name,
         int speed,
         boolean skippable,
         boolean overlayMode,
         DialogStage[] dialogStages
-) {
+) implements CinematicaAsset {
     
     public static DialogSettings fromJson(JsonObject json) {
         return SlideshowSettings.getGson().fromJson(json, DialogSettings.class);

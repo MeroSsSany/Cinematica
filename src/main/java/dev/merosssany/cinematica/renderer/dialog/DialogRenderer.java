@@ -131,7 +131,7 @@ public class DialogRenderer {
                         try (FileInputStream stream = new FileInputStream(textureFile)) {
                             NativeImage image = NativeImage.read(stream);
                             DynamicTexture dynamicTexture = new DynamicTexture(image);
-                            ResourceLocation location = ResourceLocation.fromNamespaceAndPath(Cinematica.MODID, "cinematica_dialog_" + settings.dialogName() + "_" + cache.currentDialog);
+                            ResourceLocation location = ResourceLocation.fromNamespaceAndPath(Cinematica.MODID, "cinematica_dialog_" + settings.name() + "_" + cache.currentDialog);
                             Minecraft.getInstance().getTextureManager().register(location, dynamicTexture);
                             
                             cache.tempTex = new TextureInfo(
@@ -248,7 +248,6 @@ public class DialogRenderer {
                 
                 EditBox box = cache.input;
                 
-                // FIX: Use the standard public render() wrapper loop instead of internal renderWidget methods
                 box.render(graphics, mouseX, mouseY, pTick);
             }
         }
