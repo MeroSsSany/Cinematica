@@ -5,10 +5,7 @@ import com.mojang.logging.LogUtils;
 import dev.merosssany.cinematica.core.data.RGBA;
 import dev.merosssany.cinematica.core.data.handler.*;
 import dev.merosssany.cinematica.core.data.loader.CinematicaProjectLoader;
-import dev.merosssany.cinematica.core.data.loader.assets.CreditsLoader;
-import dev.merosssany.cinematica.core.data.loader.assets.DeathScreenLoader;
-import dev.merosssany.cinematica.core.data.loader.assets.DialogLoader;
-import dev.merosssany.cinematica.core.data.loader.assets.SlideshowLoader;
+import dev.merosssany.cinematica.core.data.loader.assets.*;
 import dev.merosssany.cinematica.core.security.ObjectKey;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.Sound;
@@ -42,11 +39,13 @@ public final class Cinematica {
         DeathScreenLoader deathScreen = new DeathScreenLoader(key);
         CreditsLoader credits = new CreditsLoader(key);
         DialogLoader dialog = new DialogLoader(key);
+        CutsceneLoader cutscene = new CutsceneLoader(key);
         
         CinematicaProjectLoader.register("slideshows", slideshow);
         CinematicaProjectLoader.register("death_screens", deathScreen);
         CinematicaProjectLoader.register("credits", credits);
         CinematicaProjectLoader.register("dialogs", dialog);
+        CinematicaProjectLoader.register("cutscene", cutscene);
     }
     
     public static InputStream getRawAudioStream(String soundId) throws Exception {
