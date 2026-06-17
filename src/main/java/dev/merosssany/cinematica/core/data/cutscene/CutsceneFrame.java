@@ -1,10 +1,11 @@
 package dev.merosssany.cinematica.core.data.cutscene;
 
-import org.joml.Vector2f;
+import org.joml.Vector3d;
+import org.joml.Vector3i;
 
 public record CutsceneFrame(
-        Vector2f rotation,
-        Vector2f position,
+        Vector3d[] position,
+        Vector3i lookTo,
         double time,
         boolean paused,
         boolean containSounds
