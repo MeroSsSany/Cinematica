@@ -8,6 +8,8 @@ import dev.merosssany.cinematica.core.data.loader.Validation;
 import dev.merosssany.cinematica.core.registry.settings.DialogRegistry;
 import dev.merosssany.cinematica.core.security.ObjectKey;
 
+import java.util.Set;
+
 import static dev.merosssany.cinematica.core.Cinematica.getGsonBuilder;
 
 public class DialogLoader implements CinematicaAssetLoader<DialogSettings> {
@@ -53,5 +55,10 @@ public class DialogLoader implements CinematicaAssetLoader<DialogSettings> {
     @Override
     public void freeze(ObjectKey key, boolean freeze) {
         registry.setFrozen(freeze, key);
+    }
+    
+    @Override
+    public Set<String> getRegistered() {
+        return registry.getRegistered();
     }
 }

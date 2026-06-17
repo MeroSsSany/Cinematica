@@ -9,7 +9,7 @@ import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
 import dev.merosssany.cinematica.core.registry.settings.SlideshowRegistry;
 import dev.merosssany.cinematica.core.security.ObjectKey;
 
-import java.nio.file.Path;
+import java.util.Set;
 
 public class SlideshowLoader implements CinematicaAssetLoader<SlideshowSettings> {
     private final SlideshowRegistry registry;
@@ -63,7 +63,8 @@ public class SlideshowLoader implements CinematicaAssetLoader<SlideshowSettings>
         registry.setFrozen(freeze, key);
     }
     
-    public Path getRoot() {
-        return ;
+    @Override
+    public Set<String> getRegistered() {
+        return registry.getRegistered();
     }
 }

@@ -7,6 +7,8 @@ import dev.merosssany.cinematica.core.data.loader.Validation;
 import dev.merosssany.cinematica.core.registry.settings.DeathScreenRegistry;
 import dev.merosssany.cinematica.core.security.ObjectKey;
 
+import java.util.Set;
+
 import static dev.merosssany.cinematica.core.Cinematica.getGsonBuilder;
 
 public class DeathScreenLoader implements CinematicaAssetLoader<DeathScreenSettings> {
@@ -43,5 +45,10 @@ public class DeathScreenLoader implements CinematicaAssetLoader<DeathScreenSetti
     @Override
     public void freeze(ObjectKey key, boolean freeze) {
         registry.setFrozen(freeze, key);
+    }
+    
+    @Override
+    public Set<String> getRegistered() {
+        return registry.getRegistered();
     }
 }

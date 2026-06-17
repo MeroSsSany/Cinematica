@@ -7,6 +7,8 @@ import dev.merosssany.cinematica.core.data.scrollingtext.CreditsSettings;
 import dev.merosssany.cinematica.core.registry.settings.CreditScreenRegistry;
 import dev.merosssany.cinematica.core.security.ObjectKey;
 
+import java.util.Set;
+
 import static dev.merosssany.cinematica.core.Cinematica.getGsonBuilder;
 
 public class CreditsLoader implements CinematicaAssetLoader<CreditsSettings> {
@@ -47,5 +49,10 @@ public class CreditsLoader implements CinematicaAssetLoader<CreditsSettings> {
     @Override
     public void freeze(ObjectKey key, boolean freeze) {
         registry.setFrozen(freeze, key);
+    }
+    
+    @Override
+    public Set<String> getRegistered() {
+        return registry.getRegistered();
     }
 }
