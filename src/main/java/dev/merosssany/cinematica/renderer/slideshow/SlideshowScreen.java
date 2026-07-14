@@ -8,8 +8,6 @@ import dev.merosssany.cinematica.core.audio.AudioThread;
 import dev.merosssany.cinematica.core.data.CinematicaCommandContext;
 import dev.merosssany.cinematica.core.data.CinematicaCommandParser;
 import dev.merosssany.cinematica.core.data.ClientCameraMemory;
-import dev.merosssany.cinematica.core.data.loader.CinematicaProjectLoader;
-import dev.merosssany.cinematica.core.data.loader.assets.SlideshowLoader;
 import dev.merosssany.cinematica.core.data.rendering.TextureInfo;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSlide;
@@ -290,9 +288,9 @@ public class SlideshowScreen extends Screen {
         else
             posX = this.width - settings.offset().x - width;
         
-        int titleColor = toHex(currentStage.titleColor());
-        int textColor = toHex(currentStage.textColor());
-        int backgroundColor = toHex(currentStage.backgroundColor());
+        int titleColor = currentStage.titleColor() != null && !currentStage.titleColor().isEmpty()? toHex(currentStage.titleColor()) : 0xFFFFFFFF;
+        int textColor = currentStage.textColor() != null && !currentStage.textColor().isEmpty()? toHex(currentStage.textColor()) : 0xFFFFFFFF;
+        int backgroundColor = currentStage.backgroundColor() != null && !currentStage.backgroundColor().isEmpty()? toHex(currentStage.backgroundColor()) : 0xFF000000;
         
         if (settings.largerTextBackground()) {
             if (cache == null) cache = Renderer.layoutText(font, List.of(subtext.split("\n")), this.width);

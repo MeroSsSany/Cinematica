@@ -22,7 +22,7 @@
       "backgroundColor": "#000000",
       "secondsToSwitch": 10.25,
       "blurRadius": 0,
-      "tint": [0, 0, 0, 0]
+      "tint": [0, 0, 0, 100]
     },
     {
       "title": "FALLEN",
@@ -32,6 +32,7 @@
       "anchor": [0.5, 0.5],
       "typingSpeed": 11,
       "secondsToSwitch": 11.5,
+      "tint": [0, 0, 0, 100],
       "commands": [
       ]
     },
@@ -47,11 +48,12 @@
       "titleColor": "#FF0000",
       "textColor": "#FF5555",
       "backgroundColor": "#150000",
+      "tint": [0, 0, 0, 100],
       "secondsToSwitch": 7
     },
     {
       "title": "THE HARVEST",
-      "subtext": "All you did... was feed the soil.\nAll you did... was feed the soil.",
+      "subtext": "All you did... was fed the soil.\nAll you did... was fed the soil.",
       "isImage": true,
       "assetPath": "cinematica:cinematica/resource/4.png",
       "anchor": [0.5, 0.5],
@@ -61,6 +63,7 @@
       "titleColor": "#880000",
       "textColor": "#FFFFFF",
       "backgroundColor": "#000000",
+      "tint": [0, 0, 0, 100],
       "secondsToSwitch": 7
     },
     {
@@ -75,6 +78,7 @@
       "titleColor": "#555555",
       "textColor": "#AAAAAA",
       "backgroundColor": "#000000",
+      "tint": [0, 0, 0, 100],
       "secondsToSwitch": 7
     },
     {
@@ -89,6 +93,7 @@
       "titleColor": "#FFFFFF",
       "textColor": "#FFFFFF",
       "backgroundColor": "#000000",
+      "tint": [0, 0, 0, 100],
       "secondsToSwitch": 7
     },
     {
@@ -103,6 +108,7 @@
       "titleColor": "#FFFFFF",
       "textColor": "#FFFFFF",
       "backgroundColor": "#000000",
+      "tint": [0, 0, 0, 100],
       "secondsToSwitch": 7
     },
     {
@@ -117,11 +123,12 @@
       "titleColor": "#FF0000",
       "textColor": "#FF5555",
       "backgroundColor": "#150000",
+      "tint": [0, 0, 0, 100],
       "secondsToSwitch": 5
     },
     {
       "title": "THE HARVEST",
-      "subtext": "All you did... was feed the soil.\nAll you did... was feed the soil.",
+      "subtext": "All you did... was fed the soil.\nAll you did... was fed the soil.",
       "isImage": true,
       "assetPath": "cinematica:cinematica/resource/4.png",
       "anchor": [0.5, 0.5],
@@ -131,6 +138,7 @@
       "titleColor": "#880000",
       "textColor": "#FFFFFF",
       "backgroundColor": "#000000",
+      "tint": [0, 0, 0, 100],
       "secondsToSwitch": 8
     },
     {
@@ -145,6 +153,7 @@
       "titleColor": "#FFFFFF",
       "textColor": "#FFFFFF",
       "backgroundColor": "#150000",
+      "tint": [0, 0, 0, 100],
       "secondsToSwitch": 7
     },
     {
@@ -159,6 +168,7 @@
       "titleColor": "#FFFFFF",
       "textColor": "#FFFFFF",
       "backgroundColor": "#150000",
+      "tint": [0, 0, 0, 100],
       "secondsToSwitch": 7
     },
     {
@@ -173,11 +183,12 @@
       "titleColor": "#FF0000",
       "textColor": "#FF5555",
       "backgroundColor": "#150000",
+      "tint": [0, 0, 0, 100],
       "secondsToSwitch": 7
     },
     {
       "title": "THE HARVEST",
-      "subtext": "All you did... was feed the soil.\nAll you did... was feed the soil.",
+      "subtext": "All you did... was fed the soil.\nAll you did... was fed the soil.",
       "isImage": true,
       "assetPath": "cinematica:cinematica/resource/4.png",
       "anchor": [0.5, 0.5],
@@ -187,6 +198,7 @@
       "titleColor": "#880000",
       "textColor": "#FFFFFF",
       "backgroundColor": "#000000",
+      "tint": [0, 0, 0, 100],
       "secondsToSwitch": 7
     },
     {
@@ -201,6 +213,7 @@
       "titleColor": "#FF0000",
       "textColor": "#FF0000",
       "backgroundColor": "#000000",
+      "tint": [0, 0, 0, 100],
       "secondsToSwitch": 8
     }
   ]

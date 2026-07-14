@@ -25,8 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_E;
-import static org.lwjgl.glfw.GLFW.glfwGetTime;
+import static org.lwjgl.glfw.GLFW.*;
 
 public class CineDeathScreen extends SlideshowScreen {
     private static final RGBA VIGNETTE_INITIAL_COLOR = RGBA.fromRGBA(168, 20, 25, 1);
@@ -293,7 +292,7 @@ public class CineDeathScreen extends SlideshowScreen {
     @Override
     public boolean keyPressed(int keyCode, int pScanCode, int pModifiers) {
         if (!started) return false;
-        if (keyCode == GLFW_KEY_E) {
+        if (keyCode == GLFW_KEY_F) { // Press F to pay respects
             reset();
             end();
             return true;
