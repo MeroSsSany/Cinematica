@@ -8,6 +8,7 @@ import dev.merosssany.cinematica.core.FileManager;
 import dev.merosssany.cinematica.core.audio.data.factory.DefaultFactories;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
 import dev.merosssany.cinematica.core.security.ObjectKey;
+import dev.merosssany.cinematica.data.SavedDamageTypes;
 import dev.merosssany.cinematica.registry.ModAttachments;
 import dev.merosssany.cinematica.registry.command.CinematicaCommands;
 import dev.merosssany.cinematica.registry.command.ModArgumentTypes;
@@ -24,7 +25,9 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import org.lwjgl.glfw.GLFW;
 
 import java.io.File;
@@ -73,11 +76,16 @@ public class NeoForgeCinematica {
     
     @SubscribeEvent
     public void onCommandRegister(RegisterCommandsEvent e) {
-        CinematicaCommands.register(e.getDispatcher(), key);
+        CinematicaCommands.register(e.getDispatcher(), e.getBuildContext(), key);
     }
     
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
+    }
+    
+    @SubscribeEvent
+    public void onServerStarted(ServerStartedEvent event) {
+        SavedDamageTypes.load(event.getServer());
     }
     
     private void registerKeyMappings(RegisterKeyMappingsEvent event) {

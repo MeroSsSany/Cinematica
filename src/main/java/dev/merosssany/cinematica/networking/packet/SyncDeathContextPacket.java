@@ -27,7 +27,7 @@ public record SyncDeathContextPacket(int attackerId, String sceneId, String mess
      * Use this method on the Server side to compile and instantiate the packet data seamlessly.
      */
     public static SyncDeathContextPacket create(String sceneId, int attackerId, DamageSource source, LivingEntity entity) {
-        String localizedMessage = source.getLocalizedDeathMessage(entity).getString();
+        String localizedMessage = entity != null? source.getLocalizedDeathMessage(entity).getString() : "";
         return new SyncDeathContextPacket(attackerId, sceneId, localizedMessage);
     }
     

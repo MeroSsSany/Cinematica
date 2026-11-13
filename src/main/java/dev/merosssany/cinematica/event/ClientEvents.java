@@ -23,10 +23,9 @@ public class ClientEvents {
     
     @SubscribeEvent(priority = EventPriority.LOWEST) // Assures Cinematica intercepts after other mods modify layouts
     public static void onScreenOpen(ScreenEvent.Opening event) {
-        if (event.getScreen() instanceof DeathScreen && !(event.getScreen() instanceof CineDeathScreen)) {
+        if (event.getScreen() instanceof DeathScreen) {
             
             if (ClientDeathMemory.pendingSceneId != null && !ClientDeathMemory.pendingSceneId.isEmpty()) {
-                
                 if (CinematicaProjectLoader.get(ClientDeathMemory.pendingSceneId, SlideshowLoader.class) != null) {
                     Minecraft mc = Minecraft.getInstance();
                     ClientLevel level = mc.level;

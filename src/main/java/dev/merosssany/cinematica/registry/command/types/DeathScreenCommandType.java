@@ -1,4 +1,4 @@
-package dev.merosssany.cinematica.registry.command;
+package dev.merosssany.cinematica.registry.command.types;
 
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.arguments.ArgumentType;

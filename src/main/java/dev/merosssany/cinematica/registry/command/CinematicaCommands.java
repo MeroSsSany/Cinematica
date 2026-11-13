@@ -2,6 +2,7 @@ package dev.merosssany.cinematica.registry.command;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import dev.merosssany.cinematica.core.Cinematica;
@@ -9,18 +10,24 @@ import dev.merosssany.cinematica.core.data.death.DeathScreenSettings;
 import dev.merosssany.cinematica.core.data.slideshow.SlideshowSettings;
 import dev.merosssany.cinematica.core.registry.CinematicaRegistries;
 import dev.merosssany.cinematica.core.security.ObjectKey;
+import dev.merosssany.cinematica.data.SavedDamageTypes;
 import dev.merosssany.cinematica.networking.NetworkManager;
 import dev.merosssany.cinematica.networking.packet.OpenSlideshowPacket;
 import dev.merosssany.cinematica.registry.ModAttachments;
 import dev.merosssany.cinematica.registry.command.cinematica.CameraPositionCommand;
 import dev.merosssany.cinematica.registry.command.cinematica.MinecraftCommandHandler;
+import dev.merosssany.cinematica.registry.command.types.DamageArguments;
+import dev.merosssany.cinematica.registry.command.types.DeathScreenCommandType;
+import dev.merosssany.cinematica.registry.command.types.SlideshowCommandType;
 import net.minecraft.ChatFormatting;
+import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
 
 import java.io.IOException;
@@ -29,7 +36,7 @@ import java.util.Collection;
 public class CinematicaCommands {
     private static ObjectKey key;
     
-    public static void register(CommandDispatcher<CommandSourceStack> dispatcher, ObjectKey key) {
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher, CommandBuildContext context, ObjectKey key) {
         registerCinematicaCommands();
         CinematicaCommands.key = key;
         
@@ -55,6 +62,14 @@ public class CinematicaCommands {
                                                         Commands.argument("deathscreen", new DeathScreenCommandType())
                                                                 .executes(CinematicaCommands::attach)
                                                 )
+                                        ).then(
+                                                Commands.literal("damage").then(
+                                                        Commands.argument("type", DamageArguments.damageType(context)).then(
+                                                                Commands.argument("deathscreen", new DeathScreenCommandType())
+                                                                        .executes(CinematicaCommands::attachDamage)
+                                                        )
+                                                        
+                                                )
                                         )
                         ).then(
                                 Commands.literal("get")
@@ -76,11 +91,32 @@ public class CinematicaCommands {
                                         .executes(CinematicaCommands::refresh)
                         ).then(
                                 Commands.literal("debug")
+                                        .then(Commands.literal("damage_write").executes(CinematicaCommands::damageDebug))
                                         .executes(CinematicaCommands::debug)
                         )
         );
     }
     
+    private static int damageDebug(CommandContext<CommandSourceStack> context) {
+        context.getSource().sendSuccess(() -> Component.literal(Boolean.toString(SavedDamageTypes.isSaved())),true);
+        SavedDamageTypes.dumpLogs();
+        return 1;
+    }
+    
+    private static int attachDamage(CommandContext<CommandSourceStack> context) {
+        try {
+            ResourceKey<DamageType> damage = DamageArguments.getDamageType(context, "type");
+            DeathScreenSettings deathScreenId = context.getArgument("deathscreen", DeathScreenSettings.class);
+            SavedDamageTypes.add(damage.location().toString(), deathScreenId.name());
+            SavedDamageTypes.update();
+            
+        } catch (Exception e) {
+            context.getSource().sendFailure(Component.literal(e.getMessage()));
+            Cinematica.getLogger().error(e.getMessage(), e);
+        }
+        return 1;
+    }
+
     private static int debug(CommandContext<CommandSourceStack> context) {
         Cinematica.debug = !Cinematica.debug;
         context.getSource().sendSuccess(() -> Component.literal("Cinematica debugging has been " + (Cinematica.debug ? "enabled" : "disabled")), false);
