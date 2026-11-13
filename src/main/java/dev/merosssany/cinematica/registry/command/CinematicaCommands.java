@@ -2,7 +2,6 @@ package dev.merosssany.cinematica.registry.command;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import dev.merosssany.cinematica.core.Cinematica;
@@ -24,6 +23,8 @@ import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.ResourceArgument;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
@@ -70,6 +71,13 @@ public class CinematicaCommands {
                                                         )
                                                         
                                                 )
+                                        ).then(
+                                                Commands.literal("all").then(
+                                                        Commands.argument("entity", ResourceArgument.resource(context, Registries.ENTITY_TYPE)).then(
+                                                                Commands.argument("deathscreen", new DeathScreenCommandType())
+                                                                        .executes(CinematicaCommands::attachEntity)
+                                                        )
+                                                )
                                         )
                         ).then(
                                 Commands.literal("get")
@@ -91,15 +99,18 @@ public class CinematicaCommands {
                                         .executes(CinematicaCommands::refresh)
                         ).then(
                                 Commands.literal("debug")
-                                        .then(Commands.literal("damage_write").executes(CinematicaCommands::damageDebug))
                                         .executes(CinematicaCommands::debug)
                         )
         );
     }
     
-    private static int damageDebug(CommandContext<CommandSourceStack> context) {
-        context.getSource().sendSuccess(() -> Component.literal(Boolean.toString(SavedDamageTypes.isSaved())),true);
-        SavedDamageTypes.dumpLogs();
+    private static int attachEntity(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        var entity = ResourceArgument.getEntityType(context, "entity");
+        DeathScreenSettings settings = context.getArgument("deathscreen", DeathScreenSettings.class);
+        SavedDamageTypes.addEntity(entity.getRegisteredName(), settings.name());
+        SavedDamageTypes.update();
+        context.getSource().sendSuccess(() -> Component.literal("Every death caused by ").append(entity.value().getDescription()).append(" will play "+settings.name()), false);
+        
         return 1;
     }
     
@@ -107,8 +118,10 @@ public class CinematicaCommands {
         try {
             ResourceKey<DamageType> damage = DamageArguments.getDamageType(context, "type");
             DeathScreenSettings deathScreenId = context.getArgument("deathscreen", DeathScreenSettings.class);
-            SavedDamageTypes.add(damage.location().toString(), deathScreenId.name());
+            String damageType = damage.location().toString();
+            SavedDamageTypes.add(damageType, deathScreenId.name());
             SavedDamageTypes.update();
+            context.getSource().sendSuccess(() -> Component.literal("Every death caused by "+damageType+" will play "+deathScreenId.name()), false);
             
         } catch (Exception e) {
             context.getSource().sendFailure(Component.literal(e.getMessage()));

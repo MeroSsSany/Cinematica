@@ -59,6 +59,7 @@ public class NeoForgeCinematica {
         ModAttachments.register(modEventBus);
         
         NeoForge.EVENT_BUS.register(this);
+        NeoForge.EVENT_BUS.addListener(SavedDamageTypes::onServerClosed);
         
         try {
             FileManager.init();

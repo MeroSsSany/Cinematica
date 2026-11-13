@@ -7,10 +7,10 @@ import dev.merosssany.cinematica.networking.packet.SyncDeathContextPacket;
 import dev.merosssany.cinematica.registry.ModAttachments;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 @EventBusSubscriber(modid = Cinematica.MODID, bus = EventBusSubscriber.Bus.GAME)
 public class NeoForgeEvents {
@@ -23,6 +23,13 @@ public class NeoForgeEvents {
             
             if (attacker != null) {
                 String sceneId = attacker.getData(ModAttachments.CINEMATIC_ID.get());
+                
+                if (sceneId == null || sceneId.isEmpty()) {
+                    String entity = EntityType.getKey(attacker.getType()).toString();
+                    if (SavedDamageTypes.containsEntity(entity)) {
+                        sceneId = SavedDamageTypes.getSceneIdFromEntity(entity);
+                    } else return;
+                }
                 
                 NetworkManager.sendToPlayer(player,
                         SyncDeathContextPacket.create(

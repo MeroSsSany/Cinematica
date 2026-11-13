@@ -58,6 +58,8 @@ public class SlideshowScreen extends Screen {
     private double timeOnFirstRender = 0;
     private final double timeOnConstructor;
     private boolean textureLoadingAttempted = false; // Prevents spamming file I/O on failure
+    private double timeUpdateFPS = 0;
+    private int fps;
     
     public SlideshowScreen(SlideshowSettings settings) {
         this(settings, FileManager.getCinematicaFolder());
@@ -106,10 +108,16 @@ public class SlideshowScreen extends Screen {
         double delta = current - lastTime;
         lastTime = current;
         timePassed += delta;
+        timeUpdateFPS += delta;
         
         SlideshowSlide currentStage = settings.slides()[stage];
         String subtext = currentStage.subtext();
         String title = currentStage.title();
+        
+        if (timeUpdateFPS >= 1) {
+            timeUpdateFPS = 0;
+            fps = (int) (1 / delta);
+        }
         
         if (fadeState == FadeState.NONE && timePassed >= currentStage.secondsToSwitch() && shouldRender) {
             fadeState = FadeState.FADE_TO_BLACK;
@@ -177,6 +185,7 @@ public class SlideshowScreen extends Screen {
             graphics.drawString(font, "Time since created: " + formatTime(current - timeOnConstructor), 0, font.lineHeight * 3, 0xFFFFFFFF);
             graphics.drawString(font, "Total Time: " + formatTime(current - timeOnFirstRender), 0, font.lineHeight * 4, 0xFFFFFFFF);
             graphics.drawString(font, String.format("Fade progress: %.2f (%s)", fadeProgress, fadeState.name()), 0, font.lineHeight * 5, 0xFFFFFFFF);
+            graphics.drawString(font, "FPS: " + fps, 0, font.lineHeight * 6, 0xFFFFFFFF);
             
             graphics.pose().popPose();
         }

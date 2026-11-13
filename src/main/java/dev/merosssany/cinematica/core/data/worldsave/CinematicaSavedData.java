@@ -37,7 +37,9 @@ public class CinematicaSavedData extends SavedData {
     @Override @NotNull
     public CompoundTag save(@NotNull CompoundTag tag, HolderLookup.@NotNull Provider provider) {
         CinematicaWorldSave.CODEC.encodeStart(NbtOps.INSTANCE, saves)
-                .ifSuccess(encoded -> tag.put("CinematicaWorldSave", encoded));
+                .ifSuccess(encoded -> {
+                    if (encoded instanceof CompoundTag compound) tag.merge(compound);
+                });
         return tag;
     }
     
